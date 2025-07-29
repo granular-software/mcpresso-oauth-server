@@ -156,9 +156,12 @@ export interface TokenRequest {
   code_verifier?: string
 }
 
+export type TokenType = 'Bearer'
+export type CodeChallengeMethod = 'S256' | 'plain'
+
 export interface TokenResponse {
   access_token: string
-  token_type: 'Bearer'
+  token_type: TokenType
   expires_in: number
   refresh_token?: string
   scope: string

@@ -1,5 +1,5 @@
 {
-  "name": "{{PROJECT_NAME}}",
+  "name": "template-express-oauth-sqlite",
   "version": "1.0.0",
   "description": "{{PROJECT_DESCRIPTION}}",
   "main": "dist/server.js",

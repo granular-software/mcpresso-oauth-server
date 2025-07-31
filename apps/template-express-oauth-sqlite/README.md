@@ -2,221 +2,106 @@
 
 {{PROJECT_DESCRIPTION}}
 
-This template provides a simple MCP server with OAuth2.1 authentication using SQLite database, perfect for development and small-scale production deployments.
-
-## Features
-
-- ✅ OAuth2.1 authentication with PKCE
-- ✅ SQLite database (file-based, no external dependencies)
-- ✅ Express.js server
-- ✅ Development-friendly setup
-- ✅ User management
-- ✅ TypeScript with full type safety
-
 ## Quick Start
 
-### Prerequisites
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-- Node.js 18+
-- npm or yarn
+2. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
 
-### 1. Clone and Setup
+3. **Initialize the database**
+   ```bash
+   npm run db:init
+   ```
+   This will create the SQLite database with all necessary tables and indexes.
 
-```bash
-# Clone this template
-git clone https://github.com/granular-software/template-express-oauth-sqlite.git my-mcp-server
-cd my-mcp-server
+4. **Start development server**
+   ```bash
+   npm run dev
+   ```
 
-# Install dependencies
-npm install
-```
+5. **Build for production**
+   ```bash
+   npm run build
+   npm start
+   ```
 
-### 2. Environment Configuration
+## Database Setup
 
-Copy the example environment file and configure it:
-
-```bash
-cp env.example .env
-```
-
-Edit `.env` with your configuration:
-
-```env
-# OAuth Configuration
-JWT_SECRET=your-secure-secret-key-here
-
-# Server Configuration
-SERVER_URL=http://localhost:3000
-PORT=3000
-```
-
-### 3. Database Setup
-
-Initialize the SQLite database:
+This template uses SQLite for data storage. The database is automatically created when you run the initialization script:
 
 ```bash
 npm run db:init
 ```
 
-This will create a `data/oauth.db` file with the necessary tables.
+### Database Structure
 
-### 4. Development
+The initialization script creates the following tables:
 
-```bash
-# Start development server
-npm run dev
+- **users** - User accounts with authentication
+- **sessions** - OAuth sessions and tokens  
+- **notes** - User notes with author relationships
 
-# The server will be available at http://localhost:3000
-# MCP Inspector: http://localhost:3000
+### Database Features
+
+- ✅ **SQLite file-based storage** - No external database required
+- ✅ **Foreign key constraints** - Maintains data integrity
+- ✅ **Optimized indexes** - Fast lookups for common queries
+- ✅ **Automatic timestamps** - Created/updated tracking
+- ✅ **OAuth integration** - Session and token management
+
+### Database Location
+
+The SQLite database is stored at:
+```
+data/app.db
 ```
 
-### 5. Production
+You can customize the location by setting the `DATABASE_PATH` environment variable.
 
-```bash
-# Build the application
-npm run build
+## Features
 
-# Start production server
-npm start
-```
+- OAuth2.1 authentication with SQLite
+- User management and sessions
+- Notes resource with author relationships
+- TypeScript support
+- Development and production builds
+- Environment variable configuration
 
 ## Project Structure
 
 ```
-├── src/
-│   ├── server.ts              # Main server file
-│   ├── auth/
-│   │   └── oauth.ts          # OAuth configuration
-│   ├── storage/
-│   │   └── sqlite-storage.ts # SQLite storage implementation
-│   ├── data/
-│   │   └── users.ts          # Demo users
-│   └── resources/
-│       └── example.ts        # Example MCP resource
-├── data/
-│   └── oauth.db              # SQLite database file
-├── scripts/
-│   └── init-db.js           # Database initialization script
-├── env.example               # Environment variables template
-└── README.md                 # This file
+src/
+├── server.ts          # Main server file
+├── resources/         # MCP resources
+│   ├── users.ts       # User management
+│   └── notes.ts       # Notes with author relationships
+└── auth/              # OAuth configuration
+    └── oauth.ts
 ```
-
-## OAuth2.1 Authentication
-
-This template includes a complete OAuth2.1 implementation with:
-
-- **PKCE (Proof Key for Code Exchange)** for enhanced security
-- **Dynamic client registration** - no pre-configured credentials needed
-- **User management** with SQLite storage
-- **Token refresh** functionality
-- **Customizable login page**
-
-### Demo Users
-
-The template includes demo users for testing:
-
-- **alice@example.com** / `alice123` (read, write permissions)
-- **bob@example.com** / `bob123` (read permissions only)
-
-### OAuth Flow
-
-1. Client registers dynamically with the server
-2. User authenticates via the login page
-3. Authorization code is issued with PKCE
-4. Access token is exchanged for the code
-5. API calls use the access token
-
-## Database Schema
-
-The SQLite storage automatically creates the following tables:
-
-- `oauth_clients` - Registered OAuth clients
-- `oauth_users` - User accounts
-- `oauth_authorization_codes` - Authorization codes
-- `oauth_access_tokens` - Access tokens
-- `oauth_refresh_tokens` - Refresh tokens
 
 ## Environment Variables
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `JWT_SECRET` | Secret key for JWT tokens | Yes | - |
-| `SERVER_URL` | Base URL of your server | Yes | - |
-| `PORT` | Server port | No | 3000 |
+| PORT | Server port | No | 3000 |
+| SERVER_URL | Base URL of your server | Yes | - |
+| JWT_SECRET | Secret key for JWT tokens | Yes | - |
+| DATABASE_PATH | SQLite database file path | No | data/app.db |
 
 ## Development
 
-### Adding Resources
-
-Create new MCP resources in `src/resources/`:
-
-```typescript
-import { z } from "zod";
-import { createResource } from "mcpresso";
-
-const MyResourceSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  // ... your schema
-});
-
-export const myResource = createResource({
-  name: "my-resource",
-  schema: MyResourceSchema,
-  uri_template: "my-resources/{id}",
-  methods: {
-    get: {
-      handler: async ({ id }) => {
-        // Your implementation
-      },
-    },
-    // ... other methods
-  },
-});
-```
-
-### Customizing OAuth
-
-Edit `src/auth/oauth.ts` to customize:
-
-- Login page styling
-- User authentication logic
-- Supported scopes and grant types
-- Token expiration times
-
-## Production Considerations
-
-1. **Security**: Change all default secrets and passwords
-2. **Database**: SQLite is file-based, ensure proper backups
-3. **SSL**: Ensure HTTPS is enabled in production
-4. **Monitoring**: Add logging and monitoring
-5. **Backup**: Implement database backup strategy
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Database Lock**: Ensure only one process accesses the SQLite file
-2. **Port Conflicts**: Change `PORT` in `.env` if 3000 is in use
-3. **File Permissions**: Ensure write permissions for the `data/` directory
-
-### Logs
-
-Check logs for debugging:
-
-```bash
-# Application logs
-npm run dev
-
-# Database file location
-ls -la data/oauth.db
-```
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Build for production
+- `npm run typecheck` - Type check without building
+- `npm run db:init` - Initialize database tables and indexes
 
 ## License
 
-MIT License - see LICENSE file for details.
-
-## Support
-
-- GitHub Issues: https://github.com/granular-software/mcpresso
-- Documentation: https://github.com/granular-software/mcpresso 
+MIT 

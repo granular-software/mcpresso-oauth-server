@@ -10,6 +10,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "db:init": "node scripts/init-db.js",
     "docker:build": "docker build -t {{PROJECT_NAME}} .",
     "docker:run": "docker run -p 3000:3000 --env-file .env {{PROJECT_NAME}}",
     "docker:compose": "docker-compose up -d",

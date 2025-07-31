@@ -2,7 +2,6 @@ import { MCPOAuthServer } from "mcpresso-oauth-server";
 import { MemoryStorage } from "mcpresso-oauth-server";
 import { SQLiteStorage } from "../storage/sqlite-storage.js";
 import * as bcrypt from "bcryptjs";
-import { demoUsers } from "../data/users.js";
 
 // Resolve base URL (same logic as in server.ts)
 const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
@@ -29,17 +28,6 @@ if (process.env.DB_PATH || process.env.NODE_ENV === 'production') {
   storage = new MemoryStorage();
 }
 
-// Pre-seed the storage with demo users
-(async () => {
-  try {
-    for (const user of demoUsers) {
-      await storage.createUser(user);
-    }
-  } catch (error) {
-    // Users might already exist, ignore error
-  }
-})();
-
 // MCP auth configuration with integrated OAuth server
 export const oauthConfig = {
   oauth: new MCPOAuthServer({
@@ -51,10 +39,17 @@ export const oauthConfig = {
     supportedGrantTypes: ["authorization_code"],
     auth: {
       authenticateUser: async (credentials: { username: string; password: string }) => {
-        const found = demoUsers.find((u) => u.email === credentials.username);
-        if (!found) return null;
-        const ok = await bcrypt.compare(credentials.password, found.hashedPassword);
-        return ok ? found : null;
+        // Authenticate against database users
+        try {
+          const user = await storage.getUserByEmail(credentials.username);
+          if (!user) return null;
+          
+          const ok = await bcrypt.compare(credentials.password, user.hashedPassword);
+          return ok ? user : null;
+        } catch (error) {
+          console.error('Authentication error:', error);
+          return null;
+        }
       },
       renderLoginPage: async (context: { clientId: string; redirectUri: string; scope?: string; resource?: string }, error?: string) => {
         const errorHtml = error ? `<div class="error">${error}</div>` : "";
@@ -102,17 +97,22 @@ export const oauthConfig = {
 </html>`;
       },
     },
-  }, storage),
+  }),
   serverUrl: BASE_URL,
-  userLookup: async (jwt: { sub: string }) => {
-    const u = demoUsers.find((x) => x.id === jwt.sub);
-    if (!u) return null;
-    return {
-      id: u.id,
-      username: u.username,
-      email: u.email || "",
-      scopes: u.scopes,
-      profile: u.profile,
-    };
+  userLookup: async (jwtPayload: any) => {
+    // Look up full user profile from database
+    try {
+      const user = await storage.getUserById(jwtPayload.sub);
+      return user ? {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        scopes: user.scopes || ["read", "write"],
+        profile: user.profile || {}
+      } : null;
+    } catch (error) {
+      console.error('User lookup error:', error);
+      return null;
+    }
   },
 }; 

@@ -2,6 +2,29 @@
 
 import pg from 'pg';
 import { randomUUID } from 'crypto';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Load environment variables from .env file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envPath = join(__dirname, '..', '.env');
+
+try {
+  const envContent = readFileSync(envPath, 'utf8');
+  const envVars = envContent.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+  
+  for (const line of envVars) {
+    const [key, ...valueParts] = line.split('=');
+    const value = valueParts.join('=');
+    if (key && value) {
+      process.env[key.trim()] = value.trim();
+    }
+  }
+} catch (error) {
+  console.log('📝 No .env file found, using existing environment variables');
+}
 
 const { Pool } = pg;
 
@@ -23,11 +46,13 @@ const tables = [
         username VARCHAR(255) UNIQUE NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         hashed_password VARCHAR(255) NOT NULL,
+        scopes TEXT[] DEFAULT ARRAY['read', 'write'],
+        profile JSONB,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `,
-    description: 'User accounts with authentication'
+    description: 'User accounts with authentication and OAuth support'
   },
   {
     name: 'sessions',
@@ -144,6 +169,17 @@ async function createTables() {
     try {
       await pool.query(table.sql);
       console.log(`     ✅ Created table: ${table.name}`);
+      
+      // For users table, ensure it has the new columns
+      if (table.name === 'users') {
+        try {
+          await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS scopes TEXT[] DEFAULT ARRAY[\'read\', \'write\']');
+          await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile JSONB');
+          console.log(`     ✅ Ensured users table has OAuth columns`);
+        } catch (alterError) {
+          console.log(`     ℹ️  Users table columns already up to date`);
+        }
+      }
     } catch (error) {
       console.error(`     ❌ Error creating ${table.name}:`, error.message);
       throw error;

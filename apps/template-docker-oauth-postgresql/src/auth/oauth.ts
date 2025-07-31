@@ -1,7 +1,7 @@
 import { MCPOAuthServer } from "mcpresso-oauth-server";
 import { MemoryStorage } from "mcpresso-oauth-server";
 import { PostgresStorage } from "../storage/postgres-storage.js";
-import * as bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";
 
 // Resolve base URL (same logic as in server.ts)
 const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
@@ -9,55 +9,48 @@ const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT 
 // Create storage for OAuth data
 // Local development: Memory storage (lifetime of process)
 // Docker production: PostgreSQL storage
-let storage: any;
 
-// Check if we have a database URL (Docker environment)
-if (process.env.DATABASE_URL) {
-  // Use PostgreSQL as the persistent store in production
-  try {
-    storage = new PostgresStorage(process.env.DATABASE_URL);
-    await storage.initialize();
-    console.log('✅ Using PostgreSQL storage for OAuth data');
-  } catch (error) {
-    console.warn('PostgreSQL not available, falling back to MemoryStorage:', error);
-    storage = new MemoryStorage();
-  }
-} else {
-  // Local development uses in-memory storage
-  storage = new MemoryStorage();
+let storage = new PostgresStorage(process.env.DATABASE_URL!);
+
+if (!process.env.DATABASE_URL) {
+	throw new Error("DATABASE_URL is not set");
 }
+
+await storage.initialize();
+console.log("✅ Using PostgreSQL storage for OAuth data");
 
 // MCP auth configuration with integrated OAuth server
 export const oauthConfig = {
-  oauth: new MCPOAuthServer({
-    issuer: BASE_URL,
-    serverUrl: BASE_URL,
-    jwtSecret: process.env.JWT_SECRET || "your-secret-key-change-this",
-    allowDynamicClientRegistration: true,
-    supportedScopes: ["read", "write"],
-    supportedGrantTypes: ["authorization_code"],
-    auth: {
-      authenticateUser: async (credentials: { username: string; password: string }) => {
-        // Authenticate against database users
-        try {
-          const user = await storage.getUserByEmail(credentials.username);
-          if (!user) return null;
-          
-          const ok = await bcrypt.compare(credentials.password, user.hashedPassword);
-          return ok ? user : null;
-        } catch (error) {
-          console.error('Authentication error:', error);
-          return null;
-        }
-      },
-      renderLoginPage: async (context: { clientId: string; redirectUri: string; scope?: string; resource?: string }, error?: string) => {
-        const errorHtml = error ? `<div class="error">${error}</div>` : "";
-        return `<!DOCTYPE html>
+	oauth: new MCPOAuthServer(
+		{
+			issuer: BASE_URL,
+			serverUrl: BASE_URL,
+			jwtSecret: process.env.JWT_SECRET || "your-secret-key-change-this",
+			allowDynamicClientRegistration: true,
+			supportedScopes: ["read", "write"],
+			supportedGrantTypes: ["authorization_code"],
+			auth: {
+				authenticateUser: async (credentials: { username: string; password: string }) => {
+					// Authenticate against database users
+					try {
+						const user = await storage.getUserByEmail(credentials.username);
+						if (!user) return null;
+
+						const ok = await bcrypt.compare(credentials.password, user.hashedPassword);
+						return ok ? user : null;
+					} catch (error) {
+						console.error('Authentication error:', error);
+						return null;
+					}
+				},
+				renderLoginPage: async (context: { clientId: string; redirectUri: string; scope?: string; resource?: string }, error?: string) => {
+					const errorHtml = error ? `<div class="error">${error}</div>` : "";
+					return `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{PROJECT_NAME}} – Sign in</title>
+    <title>docker – Sign in</title>
     <style>
       :root { --primary:#2563eb; --bg:#f9fafb; --card-bg:#ffffff; --border:#e5e7eb; --radius:8px; --font:system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; }
       * { box-sizing:border-box; }
@@ -74,7 +67,7 @@ export const oauthConfig = {
   </head>
   <body>
     <form class="card" method="POST" action="/authorize">
-      <h1>Sign in to {{PROJECT_NAME}}</h1>
+      <h1>Sign in to docker</h1>
       ${errorHtml}
       <input type="hidden" name="response_type" value="code" />
       <input type="hidden" name="client_id" value="${context.clientId}" />
@@ -94,24 +87,28 @@ export const oauthConfig = {
     </form>
   </body>
 </html>`;
-      },
-    },
-  }, storage),
-  serverUrl: BASE_URL,
-  userLookup: async (jwtPayload: any) => {
-    // Look up full user profile from database
-    try {
-      const user = await storage.getUserById(jwtPayload.sub);
-      return user ? {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        scopes: user.scopes || ["read", "write"],
-        profile: user.profile || {}
-      } : null;
-    } catch (error) {
-      console.error('User lookup error:', error);
-      return null;
-    }
-  },
-}; 
+				},
+			},
+		},
+		storage,
+	),
+	serverUrl: BASE_URL,
+	userLookup: async (jwtPayload: any) => {
+		// Look up full user profile from database
+		try {
+			const user = await storage.getUserById(jwtPayload.sub);
+			return user
+				? {
+						id: user.id,
+						username: user.username,
+						email: user.email,
+						scopes: user.scopes || ["read", "write"],
+						profile: user.profile || {},
+					}
+				: null;
+		} catch (error) {
+			console.error("User lookup error:", error);
+			return null;
+		}
+	},
+};

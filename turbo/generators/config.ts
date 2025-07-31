@@ -71,6 +71,31 @@ const projects = {
   }
 };
 
+// Template projects (GitHub only, no npm)
+const templates = {
+  'template-docker-oauth-postgresql': {
+    name: 'template-docker-oauth-postgresql',
+    path: 'apps/template-docker-oauth-postgresql',
+    subtreeRemote: 'git@github.com:granular-software/template-docker-oauth-postgresql.git',
+    pushScript: 'push:template-docker-oauth-postgresql',
+    description: 'Docker + OAuth2.1 + PostgreSQL template'
+  },
+  'template-express-oauth-sqlite': {
+    name: 'template-express-oauth-sqlite',
+    path: 'apps/template-express-oauth-sqlite',
+    subtreeRemote: 'git@github.com:granular-software/template-express-oauth-sqlite.git',
+    pushScript: 'push:template-express-oauth-sqlite',
+    description: 'Express + OAuth2.1 + SQLite template'
+  },
+  'template-express-no-auth': {
+    name: 'template-express-no-auth',
+    path: 'apps/template-express-no-auth',
+    subtreeRemote: 'git@github.com:granular-software/template-express-no-auth.git',
+    pushScript: 'push:template-express-no-auth',
+    description: 'Express + No Authentication template'
+  }
+};
+
 function getCurrentVersion(projectPath: string): string {
   try {
     const packageJsonPath = path.join(projectPath, 'package.json');
@@ -573,6 +598,149 @@ $2.implement_interface({{pascalCase name}}).provide({
 • Update any dependent projects
 • Update documentation if needed
 • Announce the release
+          `;
+        },
+      ];
+    },
+  });
+
+  // Publish Template Generator
+  plop.setGenerator("publish-template", {
+    description: "Publish a template with version bump, commit, and subtree push (GitHub only, no NPM)",
+    prompts: [
+      {
+        type: "list",
+        name: "template",
+        message: "📦 Which template do you want to publish?",
+        choices: Object.values(templates).map(t => ({
+          name: `${t.name} - ${t.description}`,
+          value: t.name
+        })),
+      },
+      {
+        type: "list",
+        name: "bumpType",
+        message: (answers: any) => {
+          const template = templates[answers.template as keyof typeof templates];
+          const currentVersion = getCurrentVersion(template.path);
+          return `📊 Current version: ${currentVersion}\n   What type of version bump?`;
+        },
+        choices: (answers: any) => {
+          const template = templates[answers.template as keyof typeof templates];
+          const currentVersion = getCurrentVersion(template.path);
+          return [
+            {
+              name: `🔴 major (${bumpVersion(currentVersion, 'major')}) - Breaking changes`,
+              value: 'major'
+            },
+            {
+              name: `🟡 minor (${bumpVersion(currentVersion, 'minor')}) - New features`,
+              value: 'minor'
+            },
+            {
+              name: `🟢 patch (${bumpVersion(currentVersion, 'patch')}) - Bug fixes`,
+              value: 'patch'
+            }
+          ];
+        },
+      },
+      {
+        type: "confirm",
+        name: "confirmed",
+        message: (answers: any) => {
+          const template = templates[answers.template as keyof typeof templates];
+          const currentVersion = getCurrentVersion(template.path);
+          const newVersion = bumpVersion(currentVersion, answers.bumpType);
+          return `🚀 Proceed with publishing template ${answers.template} v${newVersion} to GitHub?`;
+        },
+        default: false,
+      },
+    ],
+    actions: (data: any) => {
+      if (!data || !data.confirmed) {
+        return [
+          function () {
+            return "❌ Template publication cancelled by user.";
+          }
+        ];
+      }
+
+      const template = templates[data.template as keyof typeof templates];
+      const currentVersion = getCurrentVersion(template.path);
+      const newVersion = bumpVersion(currentVersion, data.bumpType);
+
+      return [
+        // Step 1: Check prerequisites
+        function () {
+          try {
+            // Check git status
+            const status = execCommand('git status --porcelain');
+            if (status.length > 0) {
+              throw new Error(`⚠️  You have uncommitted changes:\n${status}\nPlease commit or stash them first.`);
+            }
+            
+            return "✅ Prerequisites checked successfully";
+          } catch (error) {
+            throw new Error(`❌ Prerequisites check failed: ${error}`);
+          }
+        },
+
+        // Step 2: Update version
+        function () {
+          try {
+            updateVersion(template.path, newVersion);
+            return `✅ Updated ${template.path}/package.json to version ${newVersion}`;
+          } catch (error) {
+            throw new Error(`❌ Failed to update version: ${error}`);
+          }
+        },
+
+        // Step 3: Commit changes
+        function () {
+          try {
+            execCommand('git add -A');
+            execCommand(`git commit -m "chore(${template.name}): bump version to ${newVersion}"`);
+            return `✅ Version change committed to main repository`;
+          } catch (error) {
+            throw new Error(`❌ Failed to commit changes: ${error}`);
+          }
+        },
+
+        // Step 4: Push to main repository
+        function () {
+          try {
+            execCommand('git push origin main');
+            return `✅ Pushed to main repository`;
+          } catch (error) {
+            throw new Error(`❌ Failed to push to main repository: ${error}`);
+          }
+        },
+
+        // Step 5: Push to subtree (GitHub only)
+        function () {
+          try {
+            execCommand(`npm run ${template.pushScript}`);
+            return `✅ Pushed template to ${template.subtreeRemote}`;
+          } catch (error) {
+            throw new Error(`❌ Failed to push template to subtree: ${error}\n\n🚨 PUBLICATION STOPPED: Subtree push failed. Please fix the issue and try again.`);
+          }
+        },
+
+        // Step 6: Success summary (GitHub only)
+        function () {
+          const githubUrl = template.subtreeRemote.replace('git@github.com:', 'https://github.com/').replace('.git', '');
+          
+          return `
+🎉 Template Publication Complete!
+
+📦 Template: ${template.name}
+📊 Version: ${newVersion}
+🐙 GitHub: ${githubUrl}
+
+🚀 Next steps:
+• Test the template: npx mcpresso init test-project --template ${template.name}
+• Update documentation if needed
+• Announce the template update
           `;
         },
       ];

@@ -24,6 +24,28 @@ const projects = {
     subtreeRemote: 'git@github.com:granular-software/mcpresso-openapi-generator.git',
     pushScript: 'push:mcpresso-openapi-generator',
     description: 'CLI tool to generate MCP servers from OpenAPI specs'
+  },
+  // Templates
+  'template-docker-oauth-postgresql': {
+    name: 'template-docker-oauth-postgresql',
+    path: 'apps/template-docker-oauth-postgresql',
+    subtreeRemote: 'git@github.com:granular-software/template-docker-oauth-postgresql.git',
+    pushScript: 'push:template-docker-oauth-postgresql',
+    description: 'Docker + OAuth2.1 + PostgreSQL template'
+  },
+  'template-express-oauth-sqlite': {
+    name: 'template-express-oauth-sqlite',
+    path: 'apps/template-express-oauth-sqlite',
+    subtreeRemote: 'git@github.com:granular-software/template-express-oauth-sqlite.git',
+    pushScript: 'push:template-express-oauth-sqlite',
+    description: 'Express + OAuth2.1 + SQLite template'
+  },
+  'template-express-no-auth': {
+    name: 'template-express-no-auth',
+    path: 'apps/template-express-no-auth',
+    subtreeRemote: 'git@github.com:granular-software/template-express-no-auth.git',
+    pushScript: 'push:template-express-no-auth',
+    description: 'Express + No Authentication template'
   }
 };
 

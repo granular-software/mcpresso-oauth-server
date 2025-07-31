@@ -6,54 +6,38 @@ import * as bcrypt from "bcryptjs";
 // Resolve base URL (same logic as in server.ts)
 const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
 
-// Create storage for OAuth data
-// Local development: Memory storage (lifetime of process)
-// Production: SQLite storage
-let storage: any;
-
-// Check if we have a database path (production environment)
-if (process.env.DB_PATH || process.env.NODE_ENV === 'production') {
-  // Use SQLite as the persistent store in production
-  try {
-    const dbPath = process.env.DB_PATH || 'data/oauth.db';
-    storage = new SQLiteStorage(dbPath);
-    await storage.initialize();
-    console.log('✅ Using SQLite storage for OAuth data');
-  } catch (error) {
-    console.warn('SQLite not available, falling back to MemoryStorage:', error);
-    storage = new MemoryStorage();
-  }
-} else {
-  // Local development uses in-memory storage
-  storage = new MemoryStorage();
-}
+const dbPath = process.env.DB_PATH || "data/oauth.db";
+const storage = new SQLiteStorage(dbPath);
+await storage.initialize();
+console.log("✅ Using SQLite storage for OAuth data");
 
 // MCP auth configuration with integrated OAuth server
 export const oauthConfig = {
-  oauth: new MCPOAuthServer({
-    issuer: BASE_URL,
-    serverUrl: BASE_URL,
-    jwtSecret: process.env.JWT_SECRET || "your-secret-key-change-this",
-    allowDynamicClientRegistration: true,
-    supportedScopes: ["read", "write"],
-    supportedGrantTypes: ["authorization_code"],
-    auth: {
-      authenticateUser: async (credentials: { username: string; password: string }) => {
-        // Authenticate against database users
-        try {
-          const user = await storage.getUserByEmail(credentials.username);
-          if (!user) return null;
-          
-          const ok = await bcrypt.compare(credentials.password, user.hashedPassword);
-          return ok ? user : null;
-        } catch (error) {
-          console.error('Authentication error:', error);
-          return null;
-        }
-      },
-      renderLoginPage: async (context: { clientId: string; redirectUri: string; scope?: string; resource?: string }, error?: string) => {
-        const errorHtml = error ? `<div class="error">${error}</div>` : "";
-        return `<!DOCTYPE html>
+	oauth: new MCPOAuthServer(
+		{
+			issuer: BASE_URL,
+			serverUrl: BASE_URL,
+			jwtSecret: process.env.JWT_SECRET || "your-secret-key-change-this",
+			allowDynamicClientRegistration: true,
+			supportedScopes: ["read", "write"],
+			supportedGrantTypes: ["authorization_code"],
+			auth: {
+				authenticateUser: async (credentials: { username: string; password: string }) => {
+					// Authenticate against database users
+					try {
+						const user = await storage.getUserByEmail(credentials.username);
+						if (!user) return null;
+
+						const ok = await bcrypt.compare(credentials.password, user.hashedPassword);
+						return ok ? user : null;
+					} catch (error) {
+						console.error("Authentication error:", error);
+						return null;
+					}
+				},
+				renderLoginPage: async (context: { clientId: string; redirectUri: string; scope?: string; resource?: string }, error?: string) => {
+					const errorHtml = error ? `<div class="error">${error}</div>` : "";
+					return `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -95,24 +79,28 @@ export const oauthConfig = {
     </form>
   </body>
 </html>`;
-      },
-    },
-  }),
-  serverUrl: BASE_URL,
-  userLookup: async (jwtPayload: any) => {
-    // Look up full user profile from database
-    try {
-      const user = await storage.getUserById(jwtPayload.sub);
-      return user ? {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        scopes: user.scopes || ["read", "write"],
-        profile: user.profile || {}
-      } : null;
-    } catch (error) {
-      console.error('User lookup error:', error);
-      return null;
-    }
-  },
-}; 
+				},
+			},
+		},
+		storage,
+	),
+	serverUrl: BASE_URL,
+	userLookup: async (jwtPayload: any) => {
+		// Look up full user profile from database
+		try {
+			const user = await storage.getUserById(jwtPayload.sub);
+			return user
+				? {
+						id: user.id,
+						username: user.username,
+						email: user.email,
+						scopes: user.scopes || ["read", "write"],
+						profile: user.profile || {},
+					}
+				: null;
+		} catch (error) {
+			console.error("User lookup error:", error);
+			return null;
+		}
+	},
+};

@@ -80,8 +80,7 @@ You can customize the location by setting the `DATABASE_PATH` environment variab
 src/
 ├── server.ts          # Main server file
 ├── resources/         # MCP resources
-│   ├── users.ts       # User management
-│   └── notes.ts       # Notes with author relationships
+│   ├── example.ts
 └── auth/              # OAuth configuration
     └── oauth.ts
 ```

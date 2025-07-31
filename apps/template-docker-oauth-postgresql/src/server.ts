@@ -36,15 +36,6 @@ const expressApp = createMCPServer({
   },
 });
 
-// Health check endpoint
-expressApp.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
-
 // Export for Docker (Node serverless runtime)
 export default expressApp;
 

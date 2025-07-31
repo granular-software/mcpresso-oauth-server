@@ -96,7 +96,7 @@ export const oauthConfig = {
 </html>`;
       },
     },
-  }),
+  }, storage),
   serverUrl: BASE_URL,
   userLookup: async (jwtPayload: any) => {
     // Look up full user profile from database

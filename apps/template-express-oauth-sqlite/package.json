@@ -13,7 +13,7 @@
     "db:init": "node scripts/init-db.js"
   },
   "dependencies": {
-    "mcpresso": "^0.7.7",
+    "mcpresso": "^0.8.0",
     "zod": "^3.23.8",
     "express": "^4.18.2",
     "bcryptjs": "^2.4.3",

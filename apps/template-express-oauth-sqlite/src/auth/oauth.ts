@@ -1,12 +1,12 @@
 import { MCPOAuthServer } from "mcpresso-oauth-server";
 import { MemoryStorage } from "mcpresso-oauth-server";
 import { SQLiteStorage } from "../storage/sqlite-storage.js";
-import * as bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";
 
 // Resolve base URL (same logic as in server.ts)
 const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
 
-const dbPath = process.env.DB_PATH || "data/oauth.db";
+const dbPath = process.env.DB_PATH || "data/app.db";
 const storage = new SQLiteStorage(dbPath);
 await storage.initialize();
 console.log("✅ Using SQLite storage for OAuth data");

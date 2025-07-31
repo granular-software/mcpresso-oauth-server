@@ -1,4 +1,6 @@
 import sqlite3 from "sqlite3";
+import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 
 import type { MCPOAuthStorage, OAuthClient, OAuthUser, AuthorizationCode, AccessToken, RefreshToken } from "mcpresso-oauth-server";
 
@@ -264,6 +266,66 @@ export class SQLiteStorage implements MCPOAuthStorage {
 				},
 			);
 		});
+	}
+
+	/**
+	 * Create a new user with password hashing
+	 * @param userData User data with plain text password
+	 * @returns The created user object
+	 */
+	async createUserWithPassword(userData: { username: string; email: string; password: string; scopes?: string[]; profile?: any }): Promise<OAuthUser> {
+		// Generate a unique ID for the user
+		const userId = randomUUID();
+
+		// Hash the password with bcrypt (salt rounds: 12)
+		const hashedPassword = await bcrypt.hash(userData.password, 12);
+
+		// Create the user object
+		const user: OAuthUser = {
+			id: userId,
+			username: userData.username,
+			email: userData.email,
+			hashedPassword: hashedPassword,
+			scopes: userData.scopes || ["read", "write"],
+			profile: userData.profile || null,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		};
+
+		// Save to database
+		await this.createUser(user);
+
+		return user;
+	}
+
+	/**
+	 * Verify a user's password
+	 * @param userId User ID to verify password for
+	 * @param password Plain text password to verify
+	 * @returns true if password is correct, false otherwise
+	 */
+	async verifyUserPassword(userId: string, password: string): Promise<boolean> {
+		const user = await this.getUser(userId);
+		if (!user) {
+			return false;
+		}
+
+		return bcrypt.compare(password, user.hashedPassword);
+	}
+
+	/**
+	 * Verify a user's password by email
+	 * @param email User email to verify password for
+	 * @param password Plain text password to verify
+	 * @returns true if password is correct, false otherwise
+	 */
+	async verifyUserPasswordByEmail(email: string, password: string): Promise<boolean> {
+		const user = await this.getUserByEmail(email);
+		if (!user) {
+			return false;
+		}
+
+		return bcrypt.compare(password, user.hashedPassword);
 	}
 
 	async getUser(userId: string): Promise<OAuthUser | null> {

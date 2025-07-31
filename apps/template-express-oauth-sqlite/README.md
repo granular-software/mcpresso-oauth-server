@@ -1,6 +1,6 @@
-# {{PROJECT_NAME}}
+# sqlite
 
-{{PROJECT_DESCRIPTION}}
+A mcpresso MCP server
 
 ## Quick Start
 
@@ -100,6 +100,17 @@ src/
 - `npm run build` - Build for production
 - `npm run typecheck` - Type check without building
 - `npm run db:init` - Initialize database tables and indexes
+
+## User Management
+
+Create and manage users with secure password hashing:
+
+- `npm run user:create` - Create a user with default credentials
+- `npm run user:create <username> <email> <password>` - Create a user with custom credentials
+- `npm run user:test-password` - Test password verification functionality
+- `npm run user:test-auth` - Test OAuth authentication flow
+
+For detailed user management documentation, see [USER_MANAGEMENT.md](./USER_MANAGEMENT.md).
 
 ## License
 

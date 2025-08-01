@@ -1,6 +1,6 @@
 {
   "name": "template-express-oauth-sqlite",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "{{PROJECT_DESCRIPTION}}",
   "main": "dist/server.js",
   "type": "module",

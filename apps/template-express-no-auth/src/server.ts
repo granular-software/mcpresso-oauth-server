@@ -1,4 +1,4 @@
-import { z } from "zod";
+import "dotenv/config";
 import { createMCPServer } from "mcpresso";
 
 // Import your resources

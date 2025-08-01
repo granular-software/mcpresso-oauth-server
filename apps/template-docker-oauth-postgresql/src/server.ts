@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { createMCPServer } from "mcpresso";
 import { oauthConfig } from "./auth/oauth.js";
 

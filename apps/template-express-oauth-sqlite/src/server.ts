@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { z } from "zod";
 import { createMCPServer } from "mcpresso";
 import { oauthConfig } from "./auth/oauth.js";

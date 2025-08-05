@@ -9,7 +9,7 @@
 
 // Core OAuth server
 export { MCPOAuthServer } from './oauth-server.js'
-export { MCPOAuthHttpServer } from './http-server.js'
+export { MCPOAuthHttpServer, registerOAuthEndpoints } from './http-server.js'
 
 // Storage implementations
 export { MemoryStorage } from './storage/memory-storage.js'

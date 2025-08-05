@@ -156,6 +156,7 @@ export class ResourceGenerator {
     
     // Find appropriate schema for this method
     const methodSchema = this.findSchemaForMethod(operation, httpMethod, primarySchema);
+    const methodSchemaName = this.findSchemaNameForMethod(operation, httpMethod, primarySchema);
     
     // Generate handler code
     const handler = this.generateHandler(operation, httpMethod);
@@ -163,6 +164,7 @@ export class ResourceGenerator {
     return {
       description: cleanedDescription,
       inputSchema: methodSchema,
+      inputSchemaName: methodSchemaName,
       handler
     };
   }
@@ -230,6 +232,42 @@ export class ResourceGenerator {
     // Fallback to primary schema
     if (primarySchema && this.schemaMap.has(primarySchema)) {
       return this.schemaMap.get(primarySchema)!.zodSchema;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Find schema name for a specific method
+   */
+  private findSchemaNameForMethod(operation: OpenAPIOperation, httpMethod: string, primarySchema?: string): string | undefined {
+    // For GET operations, use response schemas
+    if (httpMethod.toLowerCase() === 'get') {
+      const responses = operation.operation.responses;
+      if (!responses) return undefined;
+
+      if (responses['200']?.content?.['application/json']?.schema) {
+        const schemaName = this.extractSchemaName(responses['200'].content['application/json'].schema);
+        if (schemaName && this.schemaMap.has(schemaName)) {
+          return schemaName;
+        }
+      }
+    }
+
+    // For POST/PUT operations, use request body schemas
+    if (httpMethod.toLowerCase() === 'post' || httpMethod.toLowerCase() === 'put') {
+      const requestBody = operation.operation.requestBody;
+      if (requestBody?.content?.['application/json']?.schema) {
+        const schemaName = this.extractSchemaName(requestBody.content['application/json'].schema);
+        if (schemaName && this.schemaMap.has(schemaName)) {
+          return schemaName;
+        }
+      }
+    }
+
+    // Fallback to primary schema
+    if (primarySchema && this.schemaMap.has(primarySchema)) {
+      return primarySchema;
     }
 
     return undefined;

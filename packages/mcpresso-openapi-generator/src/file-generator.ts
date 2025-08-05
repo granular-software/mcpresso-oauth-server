@@ -312,8 +312,12 @@ export type ${typeName} = z.infer<typeof ${schemaVar}>;
     const methodEntries: string[] = [];
     
     for (const [methodName, method] of Object.entries(methods)) {
-      const inputSchema = method.inputSchema ? 
-        `,\n      inputSchema: ${this.serializeZodSchema(method.inputSchema)}` : '';
+      let inputSchema = '';
+      if (method.inputSchemaName) {
+        inputSchema = `,\n      inputSchema: ${toValidIdentifier(method.inputSchemaName)}Schema`;
+      } else if (method.inputSchema) {
+        inputSchema = `,\n      inputSchema: ${this.serializeZodSchema(method.inputSchema)}`;
+      }
       
       methodEntries.push(`    ${methodName}: {
       description: "${method.description}"${inputSchema},
@@ -346,6 +350,14 @@ ${methodEntries.join(',\n')}
     if (resource.primarySchema) {
       const typeName = toPascalCase(resource.primarySchema);
       imports.add(`import { ${toValidIdentifier(resource.primarySchema)}Schema } from '../schemas/${typeName}.js';`);
+    }
+
+    // Add imports for method input schemas
+    for (const method of Object.values(resource.methods)) {
+      if (method.inputSchemaName && method.inputSchemaName !== resource.primarySchema) {
+        const typeName = toPascalCase(method.inputSchemaName);
+        imports.add(`import { ${toValidIdentifier(method.inputSchemaName)}Schema } from '../schemas/${typeName}.js';`);
+      }
     }
 
     return Array.from(imports).join('\n');

@@ -74,6 +74,7 @@ export interface GeneratedResource {
 export interface ResourceMethod {
   description: string;
   inputSchema?: z.ZodTypeAny;
+  inputSchemaName?: string;
   handler: string;
 }
 

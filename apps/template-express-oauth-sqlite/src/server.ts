@@ -4,7 +4,7 @@ import { createMCPServer } from "mcpresso";
 import { oauthConfig } from "./auth/oauth.js";
 import { Express } from "express";
 // Import your resources
-import { exampleResource } from "./resources/example.js";
+import { noteResource } from "./resources/handlers/note.js";
 
 // Resolve the canonical base URL of this server for both dev and production.
 const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
@@ -13,7 +13,7 @@ const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT 
 const expressApp = createMCPServer({
 	name: "{{PROJECT_NAME}}",
 	serverUrl: BASE_URL,
-	resources: [exampleResource],
+	  resources: [noteResource],
 	auth: oauthConfig,
 	exposeTypes: true,
 	serverMetadata: {

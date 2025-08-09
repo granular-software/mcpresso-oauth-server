@@ -1,16 +1,9 @@
 import { z } from "zod";
 import { createResource } from "mcpresso";
-
-// Example: A simple note resource (public access)
-const NoteSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  content: z.string(),
-  createdAt: z.date(),
-});
+import { NoteSchema, type Note } from "../schemas/Note.js";
 
 // In-memory storage (replace with your database)
-const notes: z.infer<typeof NoteSchema>[] = [
+const notes: Note[] = [
   {
     id: "1",
     title: "Welcome Note",
@@ -26,7 +19,7 @@ const notes: z.infer<typeof NoteSchema>[] = [
 ];
 
 // Create the notes resource
-export const exampleResource = createResource({
+export const noteResource = createResource({
   name: "note",
   schema: NoteSchema,
   uri_template: "notes/{id}",
@@ -89,4 +82,4 @@ export const exampleResource = createResource({
       },
     },
   },
-}); 
+});

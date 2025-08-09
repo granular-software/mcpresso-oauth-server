@@ -96,11 +96,15 @@ The initialization script creates the following tables:
 ```
 src/
 ├── server.ts          # Main server file
+├── auth/              # OAuth configuration
+│   └── oauth.ts
 ├── resources/         # MCP resources
-│   ├── users.ts       # User management
-│   └── notes.ts       # Notes with author relationships
-└── auth/              # OAuth configuration
-    └── oauth.ts
+│   ├── schemas/       # Resource schemas
+│   │   └── Note.ts    # Note data model
+│   └── handlers/      # Resource handlers
+│       └── note.ts    # Notes with author relationships
+└── storage/           # Database layer
+    └── postgres-storage.ts
 ```
 
 ## Environment Variables

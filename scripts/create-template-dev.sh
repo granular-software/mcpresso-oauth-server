@@ -184,7 +184,10 @@ EOF
 src/
 ├── server.ts          # Main server file
 └── resources/         # MCP resources
-    └── example.ts     # Example resource
+    ├── schemas/       # Resource schemas
+    │   └── Note.ts    # Note data model
+    └── handlers/      # Resource handlers
+        └── note.ts    # Note resource implementation
 \`\`\`
 
 ## Environment Variables
@@ -311,116 +314,135 @@ EOF
 EOF
 
     # Create src directory and files
-    mkdir -p src/resources
+    mkdir -p src/resources/schemas src/resources/handlers
 
     # Create server.ts
     cat > src/server.ts << EOF
-import { createServer } from 'mcpresso';
-import { z } from 'zod';
-import express from 'express';
-import { notesResource } from './resources/example.js';
+import "dotenv/config";
+import { createMCPServer } from "mcpresso";
+import { noteResource } from "./resources/handlers/note.js";
 
-const app = express();
-const port = process.env.PORT || 3000;
+// Resolve the canonical base URL of this server for both dev and production.
+const BASE_URL = process.env.SERVER_URL || \`http://localhost:\${process.env.PORT || 3000}\`;
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Create the MCP server (Express version)
+const expressApp = createMCPServer({
+  name: "{{PROJECT_NAME}}",
+  serverUrl: BASE_URL,
+  resources: [noteResource],
+  exposeTypes: true,
+  serverMetadata: {
+    name: "{{PROJECT_NAME}}",
+    version: "1.0.0",
+    description: "{{PROJECT_DESCRIPTION}}",
+  },
 });
 
-// Create MCP server
-const server = createServer({
-  name: '{{PROJECT_NAME}}',
-  version: '1.0.0',
-  resources: [notesResource]
-});
+// Export for Node.js
+export default expressApp;
 
-// Start server
-server.listen(port, () => {
-  console.log(\`🚀 Server running on http://localhost:\${port}\`);
-  console.log(\`📊 Health check: http://localhost:\${port}/health\`);
-});
+// Local development server
+if (process.argv[1] === new URL(import.meta.url).pathname) {
+  const port = process.env.PORT || 3000;
+  console.log("Starting mcpresso server on port " + port);
+  console.log("MCP Inspector URL: http://localhost:" + port);
+  
+  expressApp.listen(port, () => {
+    console.log("Server running on http://localhost:" + port);
+  });
+}
 EOF
 
-    # Create example resource
-    cat > src/resources/example.ts << EOF
-import { Resource } from 'mcpresso';
-import { z } from 'zod';
+    # Create Note schema
+    cat > src/resources/schemas/Note.ts << EOF
+import { z } from "zod";
 
-// In-memory storage for demo
-const notes = new Map<string, { id: string; title: string; content: string; createdAt: string }>();
-
-// Note schema
-const NoteSchema = z.object({
+export const NoteSchema = z.object({
   id: z.string(),
   title: z.string(),
   content: z.string(),
-  createdAt: z.string()
+  createdAt: z.date(),
 });
 
-export const notesResource: Resource = {
-  name: 'notes',
-  description: 'Simple notes management',
+export type Note = z.infer<typeof NoteSchema>;
+EOF
+
+    # Create note resource handler
+    cat > src/resources/handlers/note.ts << EOF
+import { z } from "zod";
+import { createResource } from "mcpresso";
+import { NoteSchema, type Note } from "../schemas/Note.js";
+
+// In-memory storage (replace with your database)
+const notes: Note[] = [];
+
+// Create the notes resource
+export const noteResource = createResource({
+  name: "note",
   schema: NoteSchema,
-  
-  // List all notes
-  list: async () => {
-    return Array.from(notes.values());
+  uri_template: "notes/{id}",
+  methods: {
+    get: {
+      handler: async ({ id }) => {
+        return notes.find((note) => note.id === id);
+      },
+    },
+    list: {
+      handler: async () => {
+        return notes;
+      },
+    },
+    create: {
+      handler: async (data) => {
+        const newNote = {
+          id: Math.random().toString(36).substr(2, 9),
+          title: data.title || "",
+          content: data.content || "",
+          createdAt: new Date(),
+        };
+        notes.push(newNote);
+        return newNote;
+      },
+    },
+    update: {
+      handler: async ({ id, ...data }) => {
+        const index = notes.findIndex((note) => note.id === id);
+        if (index === -1) {
+          throw new Error("Note not found");
+        }
+        const updatedNote = { 
+          ...notes[index], 
+          ...data, 
+        };
+        notes[index] = updatedNote;
+        return updatedNote;
+      },
+    },
+    delete: {
+      handler: async ({ id }) => {
+        const index = notes.findIndex((note) => note.id === id);
+        if (index === -1) {
+          return { success: false };
+        }
+        notes.splice(index, 1);
+        return { success: true };
+      },
+    },
+    search: {
+      description: "Search notes by title or content",
+      inputSchema: z.object({
+        query: z.string().describe("Search query"),
+      }),
+      handler: async ({ query }) => {
+        return notes.filter(
+          (note) =>
+            note.title.toLowerCase().includes(query.toLowerCase()) ||
+            note.content.toLowerCase().includes(query.toLowerCase())
+        );
+      },
+    },
   },
-  
-  // Get a specific note
-  get: async (id: string) => {
-    const note = notes.get(id);
-    if (!note) {
-      throw new Error(\`Note with id \${id} not found\`);
-    }
-    return note;
-  },
-  
-  // Create a new note
-  create: async (data: { title: string; content: string }) => {
-    const id = Date.now().toString();
-    const note = {
-      id,
-      title: data.title,
-      content: data.content,
-      createdAt: new Date().toISOString()
-    };
-    notes.set(id, note);
-    return note;
-  },
-  
-  // Update a note
-  update: async (id: string, data: Partial<{ title: string; content: string }>) => {
-    const note = notes.get(id);
-    if (!note) {
-      throw new Error(\`Note with id \${id} not found\`);
-    }
-    
-    const updatedNote = { ...note, ...data };
-    notes.set(id, updatedNote);
-    return updatedNote;
-  },
-  
-  // Delete a note
-  delete: async (id: string) => {
-    const note = notes.get(id);
-    if (!note) {
-      throw new Error(\`Note with id \${id} not found\`);
-    }
-    notes.delete(id);
-    return { success: true };
-  },
-  
-  // Search notes
-  search: async (query: string) => {
-    const results = Array.from(notes.values()).filter(note =>
-      note.title.toLowerCase().includes(query.toLowerCase()) ||
-      note.content.toLowerCase().includes(query.toLowerCase())
-    );
-    return results;
-  }
-};
+});
 EOF
 
     print_success "Template files generated"

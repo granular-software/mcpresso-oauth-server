@@ -80,10 +80,15 @@ The initialization script creates the following tables:
 ```
 src/
 ├── server.ts          # Main server file
+├── auth/              # OAuth configuration
+│   └── oauth.ts
 ├── resources/         # MCP resources
-│   ├── example.ts
-└── auth/              # OAuth configuration
-    └── oauth.ts
+│   ├── schemas/       # Resource schemas
+│   │   └── Note.ts    # Note data model
+│   └── handlers/      # Resource handlers
+│       └── note.ts    # Notes with author relationships
+└── storage/           # Database layer
+    └── sqlite-storage.ts
 ```
 
 ## Environment Variables

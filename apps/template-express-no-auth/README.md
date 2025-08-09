@@ -73,7 +73,10 @@ npm start
 ├── src/
 │   ├── server.ts              # Main server file
 │   └── resources/
-│       └── example.ts        # Example MCP resource
+│       ├── schemas/           # Resource schemas
+│       │   └── Note.ts        # Note data model
+│       └── handlers/          # Resource handlers
+│           └── note.ts        # Example note resource
 ├── env.example               # Environment variables template
 └── README.md                 # This file
 ```

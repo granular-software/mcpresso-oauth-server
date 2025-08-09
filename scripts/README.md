@@ -70,7 +70,10 @@ template-{name}/
 └── src/
     ├── server.ts         # Main server file
     └── resources/
-        └── example.ts    # Example MCP resource
+        ├── schemas/      # Resource schemas
+        │   └── Note.ts   # Note data model
+        └── handlers/     # Resource handlers
+            └── note.ts   # Note resource implementation
 ```
 
 ## Testing Templates

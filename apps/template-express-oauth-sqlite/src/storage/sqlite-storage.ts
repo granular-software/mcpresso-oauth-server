@@ -17,83 +17,36 @@ export class SQLiteStorage implements MCPOAuthStorage {
 					return;
 				}
 
-				// Create tables
-				this.db!.serialize(() => {
-					this.db!.run(`
-            CREATE TABLE IF NOT EXISTS oauth_clients (
-              id TEXT PRIMARY KEY,
-              secret TEXT NOT NULL,
-              name TEXT NOT NULL,
-              type TEXT NOT NULL,
-              redirect_uris TEXT NOT NULL,
-              scopes TEXT NOT NULL,
-              grant_types TEXT NOT NULL,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-          `);
+				// Validate required tables exist; if not, instruct to run init script
+				const requiredTables = [
+					"oauth_users",
+					"oauth_clients",
+					"oauth_authorization_codes",
+					"oauth_access_tokens",
+					"oauth_refresh_tokens",
+				];
 
-					this.db!.run(`
-            CREATE TABLE IF NOT EXISTS oauth_users (
-              id TEXT PRIMARY KEY,
-              username TEXT UNIQUE NOT NULL,
-              email TEXT UNIQUE,
-              hashed_password TEXT,
-              scopes TEXT NOT NULL,
-              profile TEXT,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-          `);
+				const checks = requiredTables.map(
+					(table) =>
+						new Promise<void>((res, rej) => {
+							this.db!.get(
+								"SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+								[table],
+								(err, row) => {
+									if (err) return rej(err);
+									if (!row) return rej(new Error("missing:" + table));
+									res();
+								},
+							);
+						}),
+				);
 
-					this.db!.run(`
-            CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
-              code TEXT PRIMARY KEY,
-              client_id TEXT NOT NULL,
-              user_id TEXT NOT NULL,
-              redirect_uri TEXT NOT NULL,
-              scope TEXT NOT NULL,
-              resource TEXT,
-              code_challenge TEXT,
-              code_challenge_method TEXT,
-              expires_at DATETIME NOT NULL,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-          `);
-
-					this.db!.run(`
-            CREATE TABLE IF NOT EXISTS oauth_access_tokens (
-              access_token TEXT PRIMARY KEY,
-              client_id TEXT NOT NULL,
-              user_id TEXT NOT NULL,
-              scope TEXT NOT NULL,
-              expires_at DATETIME NOT NULL,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-          `);
-
-					this.db!.run(`
-            CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
-              refresh_token TEXT PRIMARY KEY,
-              access_token_id TEXT NOT NULL,
-              client_id TEXT NOT NULL,
-              user_id TEXT NOT NULL,
-              scope TEXT NOT NULL,
-              expires_at DATETIME NOT NULL,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-          `);
-
-					// Create indexes
-					this.db!.run("CREATE INDEX IF NOT EXISTS idx_oauth_clients_id ON oauth_clients(id)");
-					this.db!.run("CREATE INDEX IF NOT EXISTS idx_oauth_users_id ON oauth_users(id)");
-					this.db!.run("CREATE INDEX IF NOT EXISTS idx_oauth_users_username ON oauth_users(username)");
-					this.db!.run("CREATE INDEX IF NOT EXISTS idx_oauth_authorization_codes_code ON oauth_authorization_codes(code)");
-					this.db!.run("CREATE INDEX IF NOT EXISTS idx_oauth_access_tokens_token ON oauth_access_tokens(access_token)");
-					this.db!.run("CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_token ON oauth_refresh_tokens(refresh_token)");
-
-					resolve();
-				});
+				Promise.all(checks)
+					.then(() => resolve())
+					.catch((e) => {
+						const missing = e.message?.startsWith("missing:") ? e.message.replace("missing:", "") : "some tables";
+						reject(new Error(`Database schema is incomplete (missing: ${missing}). Please run: npm run db:init`));
+					});
 			});
 		});
 	}

@@ -84,6 +84,71 @@ const tables = [
     `,
     description: 'User notes with author relationship'
   }
+  ,
+  {
+    name: 'oauth_clients',
+    sql: `
+      CREATE TABLE IF NOT EXISTS oauth_clients (
+        id VARCHAR(255) PRIMARY KEY,
+        secret VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        redirect_uris TEXT[] NOT NULL,
+        scopes TEXT[] NOT NULL,
+        grant_types TEXT[] NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `,
+    description: 'OAuth clients metadata'
+  },
+  {
+    name: 'oauth_authorization_codes',
+    sql: `
+      CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
+        code VARCHAR(255) PRIMARY KEY,
+        client_id VARCHAR(255) NOT NULL,
+        user_id UUID NOT NULL,
+        redirect_uri VARCHAR(500) NOT NULL,
+        scope TEXT NOT NULL,
+        resource VARCHAR(500),
+        code_challenge VARCHAR(255),
+        code_challenge_method VARCHAR(10),
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `,
+    description: 'OAuth authorization codes'
+  },
+  {
+    name: 'oauth_access_tokens',
+    sql: `
+      CREATE TABLE IF NOT EXISTS oauth_access_tokens (
+        access_token VARCHAR(2048) PRIMARY KEY,
+        client_id VARCHAR(255) NOT NULL,
+        user_id UUID NOT NULL,
+        scope TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `,
+    description: 'OAuth access tokens'
+  },
+  {
+    name: 'oauth_refresh_tokens',
+    sql: `
+      CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
+        refresh_token VARCHAR(2048) PRIMARY KEY,
+        access_token_id VARCHAR(255) NOT NULL,
+        client_id VARCHAR(255) NOT NULL,
+        user_id UUID NOT NULL,
+        scope TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `,
+    description: 'OAuth refresh tokens'
+  }
 ];
 
 // Create indexes
@@ -113,6 +178,11 @@ const indexes = [
     sql: 'CREATE INDEX IF NOT EXISTS idx_notes_author_id ON notes(author_id)',
     description: 'Notes by author index'
   }
+  ,
+  { name: 'idx_oauth_clients_id', sql: 'CREATE INDEX IF NOT EXISTS idx_oauth_clients_id ON oauth_clients(id)', description: 'OAuth clients id index' },
+  { name: 'idx_oauth_authorization_codes_code', sql: 'CREATE INDEX IF NOT EXISTS idx_oauth_authorization_codes_code ON oauth_authorization_codes(code)', description: 'Auth codes code index' },
+  { name: 'idx_oauth_access_tokens_token', sql: 'CREATE INDEX IF NOT EXISTS idx_oauth_access_tokens_token ON oauth_access_tokens(access_token)', description: 'Access tokens index' },
+  { name: 'idx_oauth_refresh_tokens_token', sql: 'CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_token ON oauth_refresh_tokens(refresh_token)', description: 'Refresh tokens index' }
 ];
 
 // Create functions

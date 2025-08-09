@@ -14,80 +14,31 @@ export class PostgresStorage implements MCPOAuthStorage {
 	async initialize(): Promise<void> {
 		const client = await this.pool.connect();
 		try {
-			await client.query(`
-        CREATE TABLE IF NOT EXISTS oauth_clients (
-          id VARCHAR(255) PRIMARY KEY,
-          secret VARCHAR(255) NOT NULL,
-          name VARCHAR(255) NOT NULL,
-          type VARCHAR(50) NOT NULL,
-          redirect_uris TEXT[] NOT NULL,
-          scopes TEXT[] NOT NULL,
-          grant_types TEXT[] NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
+			// Validate that required tables exist; if not, instruct to run init script
+			const requiredTables = [
+				"users",
+				"oauth_clients",
+				"oauth_authorization_codes",
+				"oauth_access_tokens",
+				"oauth_refresh_tokens",
+			];
 
-			// Note: users table is created by init-db.js script
-			// This table includes: id, username, email, hashed_password, scopes, profile, created_at, updated_at
+			const missing: string[] = [];
+			for (const table of requiredTables) {
+				const res = await client.query(
+					"SELECT to_regclass($1) as exists",
+					[table],
+				);
+				if (!res.rows[0]?.exists) {
+					missing.push(table);
+				}
+			}
 
-			await client.query(`
-        CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
-          code VARCHAR(255) PRIMARY KEY,
-          client_id VARCHAR(255) NOT NULL,
-          user_id VARCHAR(255) NOT NULL,
-          redirect_uri VARCHAR(500) NOT NULL,
-          scope TEXT NOT NULL,
-          resource VARCHAR(500),
-          code_challenge VARCHAR(255),
-          code_challenge_method VARCHAR(10),
-          expires_at TIMESTAMP NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-			await client.query(`
-        CREATE TABLE IF NOT EXISTS oauth_access_tokens (
-          access_token VARCHAR(2048) PRIMARY KEY,
-          client_id VARCHAR(255) NOT NULL,
-          user_id VARCHAR(255) NOT NULL,
-          scope TEXT NOT NULL,
-          expires_at TIMESTAMP NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-			await client.query(`
-        CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
-          refresh_token VARCHAR(2048) PRIMARY KEY,
-          access_token_id VARCHAR(255) NOT NULL,
-          client_id VARCHAR(255) NOT NULL,
-          user_id VARCHAR(255) NOT NULL,
-          scope TEXT NOT NULL,
-          expires_at TIMESTAMP NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-			// Create indexes for better performance
-			await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_oauth_clients_id ON oauth_clients(id)
-      `);
-			await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_users_id ON users(id)
-      `);
-			await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)
-      `);
-			await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_oauth_authorization_codes_code ON oauth_authorization_codes(code)
-      `);
-			await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_oauth_access_tokens_token ON oauth_access_tokens(access_token)
-      `);
-			await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_token ON oauth_refresh_tokens(refresh_token)
-      `);
+			if (missing.length > 0) {
+				throw new Error(
+					`Database schema is incomplete (missing: ${missing.join(", ")}). Please run: npm run db:init`,
+				);
+			}
 		} finally {
 			client.release();
 		}

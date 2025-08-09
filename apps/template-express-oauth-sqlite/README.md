@@ -34,7 +34,7 @@ A mcpresso MCP server
 
 ## Database Setup
 
-This template uses SQLite for authentication data storage (users, sessions, tokens, etc.). The database file is created automatically on init.
+This template uses SQLite for authentication data storage (users, sessions, tokens, etc.). The database file is created automatically on init, and the init script creates the full schema.
 
 Initialize the schema:
 
@@ -46,9 +46,12 @@ npm run db:init
 
 The initialization script creates the following tables:
 
-- **users** - User accounts with authentication
-- **sessions** - OAuth sessions and tokens  
-- **notes** - User notes with author relationships
+- **oauth_users** - User accounts (username/email, hashed_password, scopes, profile)
+- **oauth_clients** - OAuth client registry (redirect URIs, scopes, grant types)
+- **oauth_authorization_codes** - Authorization codes (with PKCE fields)
+- **oauth_access_tokens** - Access tokens with expiry
+- **oauth_refresh_tokens** - Refresh tokens with expiry
+- **notes** - Example resource (user-authored notes)
 
 ### Database Features
 
@@ -114,7 +117,7 @@ Keep this value secret. Rotating it will invalidate existing tokens.
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Build for production
 - `npm run typecheck` - Type check without building
-- `npm run db:init` - Initialize SQLite database and schema
+- `npm run db:init` - Initialize SQLite database and full schema
 - `npm run secret:generate` - Generate secure JWT secret
 
 ## User Management

@@ -34,7 +34,7 @@
 
 ## Database Setup
 
-This template uses PostgreSQL. You must set a connection string and initialize the schema.
+This template uses PostgreSQL. You must set a connection string and initialize the entire schema via the init script.
 
 ### 1) Configure the connection string
 
@@ -50,7 +50,7 @@ Option B — manual:
 ```
 DATABASE_URL=postgresql://USER:PASS@HOST:5432/DB
 ```
-3. Initialize schema:
+3. Initialize full schema:
 ```bash
 node scripts/init-db.js
 ```
@@ -59,9 +59,12 @@ node scripts/init-db.js
 
 The initialization script creates the following tables:
 
-- **users** - User accounts with UUID primary keys
-- **sessions** - OAuth sessions and tokens
-- **notes** - User notes with author relationships
+- **users** - User accounts with UUID primary keys (email, username, hashed_password, scopes, profile)
+- **oauth_clients** - OAuth client registry (redirect URIs, scopes, grant types)
+- **oauth_authorization_codes** - Authorization codes (with PKCE fields)
+- **oauth_access_tokens** - Access tokens with expiry
+- **oauth_refresh_tokens** - Refresh tokens with expiry
+- **notes** - Example resource (user-authored notes)
 
 ### Database Features
 
@@ -132,7 +135,7 @@ Keep this value secret. Rotating it will invalidate existing tokens.
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Build for production
 - `npm run typecheck` - Type check without building
-- `npm run db:init` - Interactive database setup (prompts for connection string and initializes schema)
+- `npm run db:init` - Interactive database setup (prompts for connection string and initializes the full schema)
 - `npm run secret:generate` - Generate secure JWT secret
 - `npm run user:create` - Create a new user account
 

@@ -34,7 +34,9 @@ A mcpresso MCP server
 
 ## Database Setup
 
-This template uses SQLite for data storage. The database is automatically created when you run the initialization script:
+This template uses SQLite for authentication data storage (users, sessions, tokens, etc.). The database file is created automatically on init.
+
+Initialize the schema:
 
 ```bash
 npm run db:init
@@ -58,12 +60,8 @@ The initialization script creates the following tables:
 
 ### Database Location
 
-The SQLite database is stored at:
-```
-data/app.db
-```
-
-You can customize the location by setting the `DATABASE_PATH` environment variable.
+- Default path: `data/app.db`
+- To customize, set `DATABASE_PATH` in `.env` before running init.
 
 ## Features
 
@@ -94,12 +92,30 @@ src/
 | JWT_SECRET | Secret key for JWT tokens | Yes | - |
 | DATABASE_PATH | SQLite database file path | No | data/app.db |
 
+## JWT Secret
+
+Generate a secure JWT secret for token signing.
+
+Option A — script (uses `openssl` under the hood):
+```bash
+npm run secret:generate
+```
+
+Option B — manual (with openssl):
+```bash
+JWT_SECRET=$(openssl rand -hex 64)
+echo "JWT_SECRET=$JWT_SECRET" >> .env   # or replace existing JWT_SECRET in .env
+```
+
+Keep this value secret. Rotating it will invalidate existing tokens.
+
 ## Development
 
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Build for production
 - `npm run typecheck` - Type check without building
-- `npm run db:init` - Initialize database tables and indexes
+- `npm run db:init` - Initialize SQLite database and schema
+- `npm run secret:generate` - Generate secure JWT secret
 
 ## User Management
 

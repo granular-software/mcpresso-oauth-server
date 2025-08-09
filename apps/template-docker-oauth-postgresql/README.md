@@ -34,13 +34,28 @@
 
 ## Database Setup
 
-This template uses PostgreSQL for data storage. Before running the application, you need to initialize the database:
+This template uses PostgreSQL. You must set a connection string and initialize the schema.
 
+### 1) Configure the connection string
+
+Option A — interactive (recommended):
 ```bash
 npm run db:init
 ```
+You will be prompted for `DATABASE_URL` (example: `postgresql://postgres:postgres@localhost:5432/mcpresso`). The script will write it to `.env` and run the schema setup.
 
-### Database Structure
+Option B — manual:
+1. Copy env file: `cp .env.example .env`
+2. Edit `.env` and set:
+```
+DATABASE_URL=postgresql://USER:PASS@HOST:5432/DB
+```
+3. Initialize schema:
+```bash
+node scripts/init-db.js
+```
+
+### 2) Database Structure
 
 The initialization script creates the following tables:
 
@@ -95,12 +110,41 @@ src/
 | DATABASE_URL | PostgreSQL connection string | Yes | - |
 | NODE_ENV | Environment mode | No | development |
 
+## JWT Secret
+
+Generate a secure JWT secret for token signing.
+
+Option A — script (uses `openssl` under the hood):
+```bash
+npm run secret:generate
+```
+
+Option B — manual (with openssl):
+```bash
+JWT_SECRET=$(openssl rand -hex 64)
+echo "JWT_SECRET=$JWT_SECRET" >> .env   # or replace existing JWT_SECRET in .env
+```
+
+Keep this value secret. Rotating it will invalidate existing tokens.
+
 ## Development
 
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Build for production
 - `npm run typecheck` - Type check without building
-- `npm run db:init` - Initialize database tables, functions, and indexes
+- `npm run db:init` - Interactive database setup (prompts for connection string and initializes schema)
+- `npm run secret:generate` - Generate secure JWT secret
+- `npm run user:create` - Create a new user account
+
+## Create a Test User
+
+After the DB is initialized and `JWT_SECRET` is set, create a user:
+
+```bash
+npm run user:create "John Doe" "john@example.com" "strongpassword"
+```
+
+The script validates uniqueness and hashes the password before insert.
 
 ## Docker Deployment
 

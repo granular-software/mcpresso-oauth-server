@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "db:init": "node scripts/init-db.js",
+    "db:init": "bash scripts/setup-db.sh",
+    "secret:generate": "bash scripts/generate-secret.sh",
     "user:create": "tsx scripts/create-user.js"
   },
   "dependencies": {

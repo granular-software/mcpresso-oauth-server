@@ -71,30 +71,47 @@ const projects = {
   }
 };
 
-// Template projects (GitHub only, no npm)
-const templates = {
-  'template-docker-oauth-postgresql': {
-    name: 'template-docker-oauth-postgresql',
-    path: 'apps/template-docker-oauth-postgresql',
-    subtreeRemote: 'git@github.com:granular-software/template-docker-oauth-postgresql.git',
-    pushScript: 'sync:template-docker-oauth-postgresql',
-    description: 'Docker + OAuth2.1 + PostgreSQL template'
-  },
-  'template-express-oauth-sqlite': {
-    name: 'template-express-oauth-sqlite',
-    path: 'apps/template-express-oauth-sqlite',
-    subtreeRemote: 'git@github.com:granular-software/template-express-oauth-sqlite.git',
-    pushScript: 'sync:template-express-oauth-sqlite',
-    description: 'Express + OAuth2.1 + SQLite template'
-  },
-  'template-express-no-auth': {
-    name: 'template-express-no-auth',
-    path: 'apps/template-express-no-auth',
-    subtreeRemote: 'git@github.com:granular-software/template-express-no-auth.git',
-    pushScript: 'sync:template-express-no-auth',
-    description: 'Express + No Authentication template'
-  }
+// Template projects (GitHub only, no npm) - Dynamically discovered from apps/template-*
+type TemplateDef = {
+  name: string;
+  path: string;
+  subtreeRemote: string;
+  description: string;
 };
+
+async function loadTemplatesFromDisk(): Promise<Record<string, TemplateDef>> {
+  const baseDir = path.resolve("apps");
+  const result: Record<string, TemplateDef> = {};
+  try {
+    const entries = await fs.promises.readdir(baseDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (!entry.name.startsWith("template-")) continue;
+      const dirName = entry.name;
+      const templatePath = path.join("apps", dirName);
+      const templateJsonPath = path.join(templatePath, "template.json");
+      let description = dirName;
+      try {
+        const templateJson = JSON.parse(fs.readFileSync(templateJsonPath, "utf8"));
+        if (typeof templateJson?.description === "string" && templateJson.description.trim()) {
+          description = templateJson.description.trim();
+        }
+      } catch {}
+      // Default subtree remote convention
+      const subtreeRemote = `git@github.com:granular-software/${dirName}.git`;
+      result[dirName] = {
+        name: dirName,
+        path: templatePath,
+        subtreeRemote,
+        description,
+      };
+    }
+  } catch {
+    // ignore
+    console.log("No templates found in apps/template-*");
+  }
+  return result;
+}
 
 function getCurrentVersion(projectPath: string): string {
   try {
@@ -612,22 +629,28 @@ $2.implement_interface({{pascalCase name}}).provide({
         type: "list",
         name: "template",
         message: "📦 Which template do you want to publish?",
-        choices: Object.values(templates).map(t => ({
-          name: `${t.name} - ${t.description}`,
-          value: t.name
-        })),
+        choices: async () => {
+          const templates = await loadTemplatesFromDisk();
+          const values = Object.values(templates);
+          if (values.length === 0) {
+            return [{ name: "No templates found in apps/template-*", value: null }];
+          }
+          return values.map(t => ({ name: `${t.name} - ${t.description}`, value: t.name }));
+        },
       },
       {
         type: "list",
         name: "bumpType",
-        message: (answers: any) => {
+        message: async (answers: any) => {
+          const templates = await loadTemplatesFromDisk();
           const template = templates[answers.template as keyof typeof templates];
-          const currentVersion = getCurrentVersion(template.path);
+          const currentVersion = getCurrentVersion(template?.path || "");
           return `📊 Current version: ${currentVersion}\n   What type of version bump?`;
         },
-        choices: (answers: any) => {
+        choices: async (answers: any) => {
+          const templates = await loadTemplatesFromDisk();
           const template = templates[answers.template as keyof typeof templates];
-          const currentVersion = getCurrentVersion(template.path);
+          const currentVersion = getCurrentVersion(template?.path || "");
           return [
             {
               name: `🔴 major (${bumpVersion(currentVersion, 'major')}) - Breaking changes`,
@@ -647,9 +670,10 @@ $2.implement_interface({{pascalCase name}}).provide({
       {
         type: "confirm",
         name: "confirmed",
-        message: (answers: any) => {
+        message: async (answers: any) => {
+          const templates = await loadTemplatesFromDisk();
           const template = templates[answers.template as keyof typeof templates];
-          const currentVersion = getCurrentVersion(template.path);
+          const currentVersion = getCurrentVersion(template?.path || "");
           const newVersion = bumpVersion(currentVersion, answers.bumpType);
           return `🚀 Proceed with publishing template ${answers.template} v${newVersion} to GitHub?`;
         },
@@ -665,13 +689,19 @@ $2.implement_interface({{pascalCase name}}).provide({
         ];
       }
 
-      const template = templates[data.template as keyof typeof templates];
-      const currentVersion = getCurrentVersion(template.path);
+      let templateCache: Record<string, TemplateDef> | null = null;
+      const getTemplate = async () => {
+        if (!templateCache) templateCache = await loadTemplatesFromDisk();
+        return templateCache[data.template as keyof typeof templateCache];
+      };
+
+      // We will resolve template at action time since actions can be functions executed later
+      const currentVersion = "dynamic";
       const newVersion = bumpVersion(currentVersion, data.bumpType);
 
       return [
         // Step 1: Check prerequisites
-        function () {
+        async function () {
           try {
             // Check git status
             const status = execCommand('git status --porcelain');
@@ -686,20 +716,26 @@ $2.implement_interface({{pascalCase name}}).provide({
         },
 
         // Step 2: Update version
-        function () {
+        async function () {
           try {
-            updateVersion(template.path, newVersion);
-            return `✅ Updated ${template.path}/package.json to version ${newVersion}`;
+            const t = await getTemplate();
+            const current = getCurrentVersion(t.path);
+            const newVersion = bumpVersion(current, (data as any).bumpType);
+            updateVersion(t.path, newVersion);
+            return `✅ Updated ${t.path}/package.json to version ${newVersion}`;
           } catch (error) {
             throw new Error(`❌ Failed to update version: ${error}`);
           }
         },
 
         // Step 3: Commit changes
-        function () {
+        async function () {
           try {
             execCommand('git add -A');
-            execCommand(`git commit -m "chore(${template.name}): bump version to ${newVersion}"`);
+            const t = await getTemplate();
+            const current = getCurrentVersion(t.path);
+            const newVersion = bumpVersion(current, (data as any).bumpType);
+            execCommand(`git commit -m "chore(${t.name}): bump version to ${newVersion}"`);
             return `✅ Version change committed to main repository`;
           } catch (error) {
             throw new Error(`❌ Failed to commit changes: ${error}`);
@@ -707,7 +743,7 @@ $2.implement_interface({{pascalCase name}}).provide({
         },
 
         // Step 4: Push to main repository
-        function () {
+        async function () {
           try {
             execCommand('git push origin main');
             return `✅ Pushed to main repository`;
@@ -717,28 +753,31 @@ $2.implement_interface({{pascalCase name}}).provide({
         },
 
         // Step 5: Push to subtree (GitHub only)
-        function () {
+        async function () {
           try {
-            execCommand(`npm run ${template.pushScript}`);
-            return `✅ Pushed template to ${template.subtreeRemote}`;
+            const t = await getTemplate();
+            // Call the sync script directly so we don't depend on package.json scripts being present
+            execCommand(`node scripts/sync-subtree.js ${t.name}`);
+            return `✅ Pushed template to ${t.subtreeRemote}`;
           } catch (error) {
             throw new Error(`❌ Failed to push template to subtree: ${error}\n\n🚨 PUBLICATION STOPPED: Subtree push failed. Please fix the issue and try again.`);
           }
         },
 
         // Step 6: Success summary (GitHub only)
-        function () {
-          const githubUrl = template.subtreeRemote.replace('git@github.com:', 'https://github.com/').replace('.git', '');
+        async function () {
+          const t = await getTemplate();
+          const githubUrl = t.subtreeRemote.replace('git@github.com:', 'https://github.com/').replace('.git', '');
           
           return `
 🎉 Template Publication Complete!
 
-📦 Template: ${template.name}
-📊 Version: ${newVersion}
+📦 Template: ${(t as any).name}
+📊 Version: (bumped)
 🐙 GitHub: ${githubUrl}
 
 🚀 Next steps:
-• Test the template: npx mcpresso init test-project --template ${template.name}
+• Test the template: npx mcpresso init test-project --template ${(t as any).name}
 • Update documentation if needed
 • Announce the template update
           `;

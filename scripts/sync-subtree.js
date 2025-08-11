@@ -2,6 +2,7 @@
 
 const { execSync } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 const projects = {
   'mcpresso': {
@@ -48,6 +49,40 @@ const projects = {
     description: 'Express + No Authentication template'
   }
 };
+
+// Dynamically discover additional templates under apps/template-*
+function loadTemplatesToProjects() {
+  try {
+    const baseDir = path.resolve('apps');
+    const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (!entry.name.startsWith('template-')) continue;
+      const name = entry.name;
+      if (projects[name]) continue; // already defined
+      const templatePath = path.join('apps', name);
+      // Try to read description from template.json
+      let description = `${name} template`;
+      try {
+        const tplJson = JSON.parse(fs.readFileSync(path.join(templatePath, 'template.json'), 'utf8'));
+        if (typeof tplJson?.description === 'string' && tplJson.description.trim()) {
+          description = tplJson.description.trim();
+        }
+      } catch {}
+      projects[name] = {
+        name,
+        path: templatePath,
+        subtreeRemote: `git@github.com:granular-software/${name}.git`,
+        syncScript: `sync:${name}`,
+        description
+      };
+    }
+  } catch (e) {
+    // noop
+  }
+}
+// Load dynamic templates at startup
+loadTemplatesToProjects();
 
 function execCommand(command, cwd = process.cwd(), throwOnError = true) {
   try {

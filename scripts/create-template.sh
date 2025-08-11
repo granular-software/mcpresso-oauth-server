@@ -298,6 +298,9 @@ EOF
 }
 EOF
 
+    # Ensure common folders exist
+    mkdir -p src/resources/schemas src/resources/handlers src/auth src/storage scripts
+
     # Create README.md
     cat > README.md << EOF
 # {{PROJECT_NAME}}
@@ -339,12 +342,16 @@ EOF
 
 \`\`\`
 src/
-├── server.ts          # Main server file
-└── resources/         # MCP resources
-    ├── schemas/       # Resource schemas
-    │   └── Note.ts    # Note data model
-    └── handlers/      # Resource handlers
-        └── note.ts    # Note resource implementation
+├── server.ts             # Main server file
+├── auth/                 # Authentication (OAuth2.1 or API key)
+│   └── oauth.ts          # Example OAuth2.1 scaffolding (customize or remove)
+├── storage/              # Data persistence layer
+│   └── memory-storage.ts # Default in-memory storage (replace with DB)
+└── resources/            # MCP resources
+    ├── schemas/          # Resource schemas
+    │   └── Note.ts       # Note data model
+    └── handlers/         # Resource handlers
+        └── note.ts       # Note resource implementation
 \`\`\`
 
 ## Environment Variables
@@ -520,8 +527,7 @@ EOF
 }
 EOF
 
-    # Create src directory and files
-    mkdir -p src/resources/schemas src/resources/handlers
+    # Create src directory and files (files inside common folders)
 
     # Create server.ts
     cat > src/server.ts << EOF
@@ -651,6 +657,86 @@ export const noteResource = createResource({
   },
 });
 EOF
+
+    # Create default OAuth2.1 scaffolding (customizable)
+    cat > src/auth/oauth.ts << 'EOF'
+// Minimal OAuth2.1 scaffolding for your server (customize as needed)
+// This file is intentionally minimal to keep the template lightweight.
+// Replace with a real implementation or remove the auth directory if not needed.
+
+export async function verifyAccessToken(token: string): Promise<boolean> {
+  // TODO: implement your verification (JWT, database lookup, etc.)
+  // Return true if valid, false otherwise.
+  return Boolean(token && token.length > 0);
+}
+
+export type AuthContext = {
+  userId?: string;
+  scopes?: string[];
+};
+
+export async function getAuthContextFromRequest(req: any): Promise<AuthContext> {
+  const authHeader: string | undefined = req?.headers?.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : undefined;
+  if (!token) return {};
+  const ok = await verifyAccessToken(token);
+  return ok ? { userId: 'user', scopes: [] } : {};
+}
+EOF
+
+    # Create default in-memory storage with simple helpers
+    cat > src/storage/memory-storage.ts << 'EOF'
+// Simple in-memory storage used by the default Note resource example.
+// Replace with a proper database-backed storage (e.g. SQLite or PostgreSQL).
+
+export type EntityWithId<T extends object> = T & { id: string };
+
+export class InMemoryCollection<T extends object> {
+  private items: Array<EntityWithId<T>> = [];
+
+  list(): Array<EntityWithId<T>> {
+    return this.items;
+  }
+
+  get(id: string): EntityWithId<T> | undefined {
+    return this.items.find((i) => i.id === id);
+  }
+
+  create(data: T): EntityWithId<T> {
+    const id = Math.random().toString(36).slice(2, 11);
+    const item = { id, ...data } as EntityWithId<T>;
+    this.items.push(item);
+    return item;
+  }
+
+  update(id: string, patch: Partial<T>): EntityWithId<T> | undefined {
+    const idx = this.items.findIndex((i) => i.id === id);
+    if (idx === -1) return undefined;
+    const updated = { ...this.items[idx], ...patch } as EntityWithId<T>;
+    this.items[idx] = updated;
+    return updated;
+  }
+
+  delete(id: string): boolean {
+    const idx = this.items.findIndex((i) => i.id === id);
+    if (idx === -1) return false;
+    this.items.splice(idx, 1);
+    return true;
+  }
+}
+EOF
+
+    # Provide a helper script (optional) to generate secrets
+    cat > scripts/generate-secret.sh << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if command -v openssl >/dev/null 2>&1; then
+  openssl rand -base64 32
+else
+  node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+fi
+EOF
+    chmod +x scripts/generate-secret.sh
 
     print_success "Template files generated"
 }
@@ -800,15 +886,23 @@ update_cli_template_manager() {
     # Create backup
     cp "$template_manager_file" "$template_manager_file.backup"
     
-    # Add new template to OFFICIAL_TEMPLATES array
-    local template_entry="  {
-    id: '$FULL_TEMPLATE_ID',
-    name: '$TEMPLATE_NAME',
-    description: '$TEMPLATE_DESCRIPTION',
-    category: '$TEMPLATE_CATEGORY',
-    authType: '$TEMPLATE_AUTH_TYPE',
-    complexity: '$TEMPLATE_COMPLEXITY',
-    url: 'https://github.com/$GITHUB_REPO',
+    # Avoid duplicate entries
+    if grep -q "id: '$FULL_TEMPLATE_ID'" "$template_manager_file"; then
+        print_warning "Template already present; skipping CLI update"
+        return 0
+    fi
+
+    # New entry block (TypeScript object literal)
+    local template_entry
+    read -r -d '' template_entry << 'ENTRY'
+  {
+    id: '__ID__',
+    name: '__NAME__',
+    description: '__DESC__',
+    category: '__CAT__',
+    authType: '__AUTH__',
+    complexity: '__CX__',
+    url: '__URL__',
     features: [
       'MCP server',
       'TypeScript',
@@ -822,26 +916,56 @@ update_cli_template_manager() {
       { name: 'PORT', description: 'Server port', required: false, default: '3000' },
       { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
     ]
-  }"
-    
-    # Find the position to insert (before the closing bracket of OFFICIAL_TEMPLATES array)
-    local insert_line=$(grep -n "];" "$template_manager_file" | head -1 | cut -d: -f1)
-    
-    if [ -z "$insert_line" ]; then
-        print_error "Could not find OFFICIAL_TEMPLATES array in template manager file"
-        print_warning "Restoring backup and skipping CLI update"
+  }
+ENTRY
+
+    template_entry=${template_entry/__ID__/$FULL_TEMPLATE_ID}
+    template_entry=${template_entry/__NAME__/$TEMPLATE_NAME}
+    template_entry=${template_entry/__DESC__/$TEMPLATE_DESCRIPTION}
+    template_entry=${template_entry/__CAT__/$TEMPLATE_CATEGORY}
+    template_entry=${template_entry/__AUTH__/$TEMPLATE_AUTH_TYPE}
+    template_entry=${template_entry/__CX__/$TEMPLATE_COMPLEXITY}
+    template_entry=${template_entry/__URL__/https://github.com/$GITHUB_REPO}
+
+    # Locate OFFICIAL_TEMPLATES array bounds precisely
+    local start_line=$(grep -n "^const OFFICIAL_TEMPLATES" "$template_manager_file" | head -1 | cut -d: -f1)
+    if [ -z "$start_line" ]; then
+        print_error "OFFICIAL_TEMPLATES declaration not found"
         cp "$template_manager_file.backup" "$template_manager_file"
         return 1
     fi
-    
-    # Create a temporary file with the new template entry
-    local temp_file=$(mktemp)
-    head -n $((insert_line - 1)) "$template_manager_file" > "$temp_file"
-    echo "$template_entry" >> "$temp_file"
-    tail -n +$insert_line "$template_manager_file" >> "$temp_file"
-    
-    # Replace the original file
-    mv "$temp_file" "$template_manager_file"
+    local after_start=$(tail -n +$start_line "$template_manager_file")
+    local rel_end=$(printf "%s" "$after_start" | awk 'BEGIN{lvl=0} /\[/ {if(NR==1){lvl=1}else{}} {for(i=1;i<=length($0);i++){c=substr($0,i,1); if(c=="[") lvl++; else if(c=="]") {lvl--; if(lvl==0){print NR; exit}}}}')
+    if [ -z "$rel_end" ]; then
+        print_error "OFFICIAL_TEMPLATES closing bracket not found"
+        cp "$template_manager_file.backup" "$template_manager_file"
+        return 1
+    fi
+    local end_line=$((start_line + rel_end - 1))
+
+    # Prepare segments
+    local head_file=$(mktemp)
+    local tail_file=$(mktemp)
+    head -n $((end_line - 1)) "$template_manager_file" > "$head_file"
+    tail -n +$end_line "$template_manager_file" > "$tail_file"
+
+    # Ensure preceding item ends with a comma
+    local last_non_empty=$(awk 'NF{line=NR} END{print line}' "$head_file")
+    if [ -n "$last_non_empty" ]; then
+      local line_text=$(sed -n "${last_non_empty}p" "$head_file")
+      if ! echo "$line_text" | grep -q ",$"; then
+        # append comma at end (macOS sed syntax)
+        sed -i '' "${last_non_empty}s/$/,/" "$head_file"
+      fi
+    fi
+
+    # Stitch new content
+    local new_file=$(mktemp)
+    cat "$head_file" > "$new_file"
+    printf "\n%s\n" "$template_entry" >> "$new_file"
+    cat "$tail_file" >> "$new_file"
+    mv "$new_file" "$template_manager_file"
+    rm -f "$head_file" "$tail_file"
     
     print_success "CLI template manager updated"
 }

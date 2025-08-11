@@ -537,7 +537,17 @@ $2.implement_interface({{pascalCase name}}).provide({
           }
         },
 
-        // Step 2: Update version
+        // Step 2: Pre-sync subtree (pull-only) to avoid merge conflicts later
+        function () {
+          try {
+            execCommand(`node scripts/sync-subtree.js ${project.name} --pull-only`);
+            return `✅ Pre-synced ${project.name} (pull-only)`;
+          } catch (error) {
+            throw new Error(`❌ Failed to pre-sync subtree (pull-only): ${error}`);
+          }
+        },
+
+        // Step 3: Update version
         function () {
           try {
             updateVersion(project.path, newVersion);
@@ -547,7 +557,7 @@ $2.implement_interface({{pascalCase name}}).provide({
           }
         },
 
-        // Step 3: Commit changes
+        // Step 4: Commit changes
         function () {
           try {
             execCommand('git add -A');
@@ -558,7 +568,7 @@ $2.implement_interface({{pascalCase name}}).provide({
           }
         },
 
-        // Step 4: Push to main repository
+        // Step 5: Push to main repository
         function () {
           try {
             execCommand('git push origin main');
@@ -568,17 +578,17 @@ $2.implement_interface({{pascalCase name}}).provide({
           }
         },
 
-        // Step 5: Push to subtree
+        // Step 6: Push to subtree (push-only, we've already pulled)
         function () {
           try {
-            execCommand(`npm run ${project.pushScript}`);
-            return `✅ Pushed to ${project.subtreeRemote}`;
+            execCommand(`node scripts/sync-subtree.js ${project.name} --push-only`);
+            return `✅ Pushed ${project.name} to ${project.subtreeRemote}`;
           } catch (error) {
             throw new Error(`❌ Failed to push to subtree: ${error}\n\n🚨 PUBLICATION STOPPED: Subtree push failed. Please fix the issue and try again.`);
           }
         },
 
-        // Step 6: Build and publish to NPM
+        // Step 7: Build and publish to NPM
         function () {
           try {
             const projectDir = path.resolve(project.path);
@@ -599,7 +609,7 @@ $2.implement_interface({{pascalCase name}}).provide({
           }
         },
 
-        // Step 7: Success summary
+        // Step 8: Success summary
         function () {
           const githubUrl = project.subtreeRemote.replace('git@github.com:', 'https://github.com/').replace('.git', '');
           
@@ -715,7 +725,18 @@ $2.implement_interface({{pascalCase name}}).provide({
           }
         },
 
-        // Step 2: Update version
+        // Step 2: Pre-sync subtree (pull-only) to avoid merge conflicts later
+        async function () {
+          try {
+            const t = await getTemplate();
+            execCommand(`node scripts/sync-subtree.js ${t.name} --pull-only`);
+            return `✅ Pre-synced ${t.name} (pull-only)`;
+          } catch (error) {
+            throw new Error(`❌ Failed to pre-sync template subtree (pull-only): ${error}`);
+          }
+        },
+
+        // Step 3: Update version
         async function () {
           try {
             const t = await getTemplate();
@@ -728,7 +749,7 @@ $2.implement_interface({{pascalCase name}}).provide({
           }
         },
 
-        // Step 3: Commit changes
+        // Step 4: Commit changes
         async function () {
           try {
             execCommand('git add -A');
@@ -742,7 +763,7 @@ $2.implement_interface({{pascalCase name}}).provide({
           }
         },
 
-        // Step 4: Push to main repository
+        // Step 5: Push to main repository
         async function () {
           try {
             execCommand('git push origin main');
@@ -752,19 +773,18 @@ $2.implement_interface({{pascalCase name}}).provide({
           }
         },
 
-        // Step 5: Push to subtree (GitHub only)
+        // Step 6: Push to subtree (GitHub only, push-only)
         async function () {
           try {
             const t = await getTemplate();
-            // Call the sync script directly so we don't depend on package.json scripts being present
-            execCommand(`node scripts/sync-subtree.js ${t.name}`);
-            return `✅ Pushed template to ${t.subtreeRemote}`;
+            execCommand(`node scripts/sync-subtree.js ${t.name} --push-only`);
+            return `✅ Pushed template ${t.name} to ${t.subtreeRemote}`;
           } catch (error) {
             throw new Error(`❌ Failed to push template to subtree: ${error}\n\n🚨 PUBLICATION STOPPED: Subtree push failed. Please fix the issue and try again.`);
           }
         },
 
-        // Step 6: Success summary (GitHub only)
+        // Step 7: Success summary (GitHub only)
         async function () {
           const t = await getTemplate();
           const githubUrl = t.subtreeRemote.replace('git@github.com:', 'https://github.com/').replace('.git', '');

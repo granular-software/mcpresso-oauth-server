@@ -2,6 +2,10 @@
 
 {{PROJECT_DESCRIPTION}}
 
+This template is a Docker-first MCP server that uses a single user with a generated API key.
+No database is required. OAuth2.1 endpoints are still implemented to satisfy MCP requirements,
+but the login page simply asks for the API key.
+
 ## Quick Start
 
 1. **Install dependencies**
@@ -28,21 +32,25 @@
 
 ## Features
 
-- MCP server with Express.js
-- TypeScript support
-- Development and production builds
-- Environment variable configuration
+- Docker-ready
+- Single user, API-key based login page (OAuth2.1 compatible surface)
+- No database required; tokens and codes are stored in a JSON file under `DATA_DIR`
+- TypeScript support, dev and prod builds
 
 ## Project Structure
 
 ```
 src/
-├── server.ts          # Main server file
-└── resources/         # MCP resources
-    ├── schemas/       # Resource schemas
-    │   └── Note.ts    # Note data model
-    └── handlers/      # Resource handlers
-        └── note.ts    # Note resource implementation
+├── server.ts             # Main server file
+├── auth/
+│   └── oauth.ts          # Shows an API key login page; verifies the key
+├── storage/
+│   └── file-storage.ts   # Persists OAuth tokens/codes/users in a JSON file
+└── resources/
+    ├── schemas/          # Resource schemas
+    │   └── Note.ts
+    └── handlers/
+        └── note.ts
 ```
 
 ## Environment Variables
@@ -51,6 +59,8 @@ src/
 |----------|-------------|----------|---------|
 | PORT | Server port | No | 3000 |
 | SERVER_URL | Base URL of your server | Yes | - |
+| DATA_DIR | Directory where api_key and oauth state are stored | No | ./data |
+| API_KEY_FILE | Optional path to API key file | No | <DATA_DIR>/api_key.txt |
 
 ## Development
 

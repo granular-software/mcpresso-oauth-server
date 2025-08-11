@@ -26,6 +26,17 @@
       "name": "SERVER_URL",
       "description": "Base URL of your server",
       "required": true
+    },
+    {
+      "name": "DATA_DIR",
+      "description": "Directory to persist API key and OAuth state",
+      "required": false,
+      "default": "./data"
+    },
+    {
+      "name": "API_KEY_FILE",
+      "description": "Optional path to API key file",
+      "required": false
     }
   ]
 }

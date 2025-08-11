@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { createMCPServer } from "mcpresso";
 import { noteResource } from "./resources/handlers/note.js";
+import { oauthConfig } from "./auth/oauth.js";
 
 // Resolve the canonical base URL of this server for both dev and production.
 const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3000}`;
@@ -10,6 +11,7 @@ const expressApp = createMCPServer({
   name: "{{PROJECT_NAME}}",
   serverUrl: BASE_URL,
   resources: [noteResource],
+  auth: oauthConfig,
   exposeTypes: true,
   serverMetadata: {
     name: "{{PROJECT_NAME}}",

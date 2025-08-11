@@ -170,19 +170,52 @@ function syncSubtree(projectName, options = {}) {
       execCommand(`git subtree pull --prefix=${project.path} ${project.subtreeRemote} main --squash`);
       console.log(`✅ Successfully pulled latest changes for ${project.name}`);
     } catch (error) {
-      if (error.message.includes('merge conflict')) {
+      const errorMessage = String(error.message || '');
+      if (errorMessage.includes('merge conflict')) {
         console.log(`⚠️  Merge conflicts detected in ${project.name}`);
         console.log(`📝 Please resolve conflicts in ${project.path}/ and then run:`);
         console.log(`   git add ${project.path}/`);
         console.log(`   git commit -m "resolve: merge conflicts in ${project.name}"`);
         console.log(`   npm run sync:${projectName}`);
         throw new Error('Merge conflicts need to be resolved manually');
-      }
-      
-      // If pull fails for other reasons, continue but warn
-      console.log(`⚠️  Pull failed: ${error.message}`);
-      if (!force) {
-        throw error;
+      } else if (errorMessage.includes("was never added")) {
+        // Handle first-time setup where the subtree hasn't been added yet
+        console.log(`⚠️  Subtree for ${project.name} was never added. Initializing now...`);
+        try {
+          // Try a straightforward add first
+          execCommand(`git subtree add --prefix=${project.path} ${project.subtreeRemote} main --squash`);
+          console.log(`✅ Subtree initialized for ${project.name}`);
+        } catch (addError) {
+          const addErrMsg = String(addError.message || '');
+          if (addErrMsg.includes("prefix '")) {
+            // The directory already exists locally. We'll safely back it up, clear it, and add the subtree
+            const timestamp = Date.now();
+            const backupPath = path.join(process.cwd(), `${project.path}.backup-${timestamp}`);
+            console.log(`🗄️  Backing up existing directory to ${backupPath} ...`);
+            // Best-effort backup; ignore failures
+            execCommand(`mkdir -p ${path.dirname(backupPath)}`, process.cwd(), false);
+            execCommand(`cp -R ${project.path} ${backupPath}`, process.cwd(), false);
+            console.log(`🧹 Preparing prefix for subtree add...`);
+            // Remove from index if tracked, and remove the working directory copy
+            execCommand(`git rm -r --cached ${project.path}`, process.cwd(), false);
+            execCommand(`rm -rf ${project.path}`, process.cwd(), false);
+            // Commit the preparation if there are staged changes
+            execCommand(`git commit -m "chore(subtree): prepare ${project.name} prefix for subtree add"`, process.cwd(), false);
+            // Now add the subtree
+            execCommand(`git subtree add --prefix=${project.path} ${project.subtreeRemote} main --squash`);
+            console.log(`✅ Subtree initialized for ${project.name}`);
+          } else {
+            throw new Error(`Failed to initialize subtree for ${project.name}: ${addErrMsg}`);
+          }
+        }
+        // After initialization, we consider pull successful and move on
+        console.log(`✅ Pull completed for ${project.name}`);
+      } else {
+        // If pull fails for other reasons, continue but warn
+        console.log(`⚠️  Pull failed: ${errorMessage}`);
+        if (!force) {
+          throw error;
+        }
       }
     }
   }

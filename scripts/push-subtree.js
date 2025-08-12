@@ -33,6 +33,13 @@ const projects = {
     pushScript: 'push:template-docker-oauth-postgresql',
     description: 'Docker + OAuth2.1 + PostgreSQL template'
   },
+  'template-docker-single-user': {
+    name: 'template-docker-single-user',
+    path: 'apps/template-docker-single-user',
+    subtreeRemote: 'git@github.com:granular-software/template-docker-single-user.git',
+    pushScript: 'push:template-docker-single-user',
+    description: 'Docker + Single User (API Key) template'
+  },
   'template-express-oauth-sqlite': {
     name: 'template-express-oauth-sqlite',
     path: 'apps/template-express-oauth-sqlite',

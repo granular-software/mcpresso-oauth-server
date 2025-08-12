@@ -77,6 +77,26 @@ export const oauthConfig = {
       </div>
       <button type="submit">Continue</button>
     </form>
+    <script>
+      (function () {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          var form = document.querySelector('form[action="/authorize"]');
+          if (!form) return;
+          ['state','code_challenge','code_challenge_method','resource','scope','redirect_uri','client_id','response_type']
+            .forEach(function (k) {
+              var v = params.get(k);
+              if (v) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = k;
+                input.value = v;
+                form.appendChild(input);
+              }
+            });
+        } catch (e) { /* no-op */ }
+      })();
+    </script>
   </body>
 </html>`;
 				},

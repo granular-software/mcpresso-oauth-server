@@ -1,26 +1,11 @@
 {
+  "extends": "../../packages/typescript-config/base.json",
   "compilerOptions": {
-    "target": "es2017",
-    "lib": ["esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "baseUrl": ".",
-    "types": ["node"],
-    "paths": {
-      "@joshu/os-types": ["packages/os-types/src"],
-      "@joshu/sdk": ["packages/joshu-sdk/src"]
-    }
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "lib": ["es2022"],
+    "types": ["node"]
   },
-  "exclude": ["node_modules"],
-  "include": ["**/*.ts", "**/*.tsx", "packages/api/tsconfig.json"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 } 

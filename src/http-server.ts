@@ -10,19 +10,21 @@ export function registerOAuthEndpoints(app: express.Application, oauthServer: MC
   // Authorization endpoint (GET - show login page or redirect)
   app.get(`${basePath}/authorize`, async (req, res) => {
     try {
+      const q = req.query as Record<string, any>
+      const first = (v: any) => Array.isArray(v) ? v[0] : v
       const params = {
-        response_type: req.query.response_type as 'code',
-        client_id: req.query.client_id as string,
-        redirect_uri: req.query.redirect_uri as string,
-        scope: req.query.scope as string,
-        state: req.query.state as string,
-        resource: req.query.resource as string,
-        code_challenge: req.query.code_challenge as string,
-        code_challenge_method: req.query.code_challenge_method as 'S256' | 'plain'
+        response_type: first(q.response_type) as 'code',
+        client_id: first(q.client_id) as string,
+        redirect_uri: first(q.redirect_uri) as string,
+        scope: first(q.scope) as string,
+        state: first(q.state) as string,
+        resource: first(q.resource) as string,
+        code_challenge: first(q.code_challenge) as string,
+        code_challenge_method: first(q.code_challenge_method) as 'S256' | 'plain'
       }
 
       const requestContext = {
-        ipAddress: req.ip || req.connection.remoteAddress || '0.0.0.0',
+        ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || (req.connection as any).remoteAddress || '0.0.0.0',
         userAgent: req.headers['user-agent']
       }
 
@@ -48,24 +50,26 @@ export function registerOAuthEndpoints(app: express.Application, oauthServer: MC
   // Authorization endpoint (POST - handle login form submission)
   app.post(`${basePath}/authorize`, async (req, res) => {
     try {
+      const b = req.body as Record<string, any>
+      const first = (v: any) => Array.isArray(v) ? v[0] : v
       const params = {
-        response_type: req.body.response_type as 'code',
-        client_id: req.body.client_id as string,
-        redirect_uri: req.body.redirect_uri as string,
-        scope: req.body.scope as string,
-        state: req.body.state as string,
-        resource: req.body.resource as string,
-        code_challenge: req.body.code_challenge as string,
-        code_challenge_method: req.body.code_challenge_method as 'S256' | 'plain'
+        response_type: first(b.response_type) as 'code',
+        client_id: first(b.client_id) as string,
+        redirect_uri: first(b.redirect_uri) as string,
+        scope: first(b.scope) as string,
+        state: first(b.state) as string,
+        resource: first(b.resource) as string,
+        code_challenge: first(b.code_challenge) as string,
+        code_challenge_method: first(b.code_challenge_method) as 'S256' | 'plain'
       }
 
-      const credentials = req.body.username && req.body.password ? {
-        username: req.body.username as string,
-        password: req.body.password as string
+      const credentials = first(b.username) && first(b.password) ? {
+        username: first(b.username) as string,
+        password: first(b.password) as string
       } : undefined
 
       const requestContext = {
-        ipAddress: req.ip || req.connection.remoteAddress || '0.0.0.0',
+        ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || (req.connection as any).remoteAddress || '0.0.0.0',
         userAgent: req.headers['user-agent']
       }
 

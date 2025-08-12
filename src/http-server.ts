@@ -7,6 +7,31 @@ import { MCPOAuthServer } from './oauth-server.js'
 import type { MCPOAuthConfig, HTTPServerConfig } from './types.js'
 
 export function registerOAuthEndpoints(app: express.Application, oauthServer: MCPOAuthServer, basePath = "") {
+  const renderSuccessPage = (redirectUrl: string) => `<!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Authorization successful</title>
+      <meta http-equiv="refresh" content="1;url=${redirectUrl}">
+      <style>
+        :root { --primary:#2563eb; --bg:#f9fafb; --card-bg:#ffffff; --border:#e5e7eb; --radius:10px; --font:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+        body { margin:0; background:var(--bg); display:flex; align-items:center; justify-content:center; height:100vh; font-family:var(--font); }
+        .card { width:100%; max-width:480px; background:var(--card-bg); padding:28px 32px; border:1px solid var(--border); border-radius:var(--radius); box-shadow:0 10px 30px rgba(0,0,0,0.06); text-align:center; }
+        h1 { margin:0 0 8px; font-size:22px; }
+        p { color:#4b5563; font-size:14px; margin:0 0 14px; }
+        a { color:var(--primary); text-decoration:none; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>Authorization successful</h1>
+        <p>You can close this window. Redirecting you back to your application…</p>
+        <p><a href="${redirectUrl}">Continue</a></p>
+      </div>
+      <script>setTimeout(function(){ location.replace(${JSON.stringify(redirectUrl)}); }, 900);</script>
+    </body>
+  </html>`
   // Authorization endpoint (GET - show login page or redirect)
   app.get(`${basePath}/authorize`, async (req, res) => {
     try {
@@ -39,7 +64,7 @@ export function registerOAuthEndpoints(app: express.Application, oauthServer: MC
       }
       
       if ('redirectUrl' in result) {
-        res.redirect(result.redirectUrl)
+        res.type('html').send(renderSuccessPage(result.redirectUrl))
       }
     } catch (error) {
       console.error('Authorization error:', error)
@@ -84,7 +109,7 @@ export function registerOAuthEndpoints(app: express.Application, oauthServer: MC
       }
       
       if ('redirectUrl' in result) {
-        res.redirect(result.redirectUrl)
+        res.type('html').send(renderSuccessPage(result.redirectUrl))
       }
     } catch (error) {
       console.error('Authorization error:', error)
